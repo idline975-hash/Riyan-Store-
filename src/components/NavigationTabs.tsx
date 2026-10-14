@@ -84,7 +84,7 @@ export const NavigationTabs: React.FC<NavigationTabsProps> = ({
   ];
 
   return (
-    <div className="bg-white border-b border-gray-200 sticky top-0 z-30 shadow-xs">
+    <div className="w-full max-w-full bg-white border-b border-gray-200">
       <div className="max-w-7xl mx-auto px-2 sm:px-4 relative flex items-center">
         {/* Scroll Left */}
         <button

@@ -42,6 +42,7 @@ import { StockInModal } from './components/StockInModal';
 import { StockOpnameModal } from './components/StockOpnameModal';
 import { ReceiptModal } from './components/ReceiptModal';
 import { LoginLockScreen } from './components/LoginLockScreen';
+import { BottomNavBar } from './components/BottomNavBar';
 
 const STORAGE_KEYS = {
   ITEMS: 'riyan_store_items_v1',
@@ -567,7 +568,7 @@ export default function App() {
   }
 
   return (
-    <div className="min-h-screen bg-slate-50 text-gray-900 flex flex-col font-sans selection:bg-teal-200">
+    <div className="min-h-screen w-full max-w-full bg-slate-50 text-gray-900 flex flex-col font-sans selection:bg-teal-200 overflow-x-hidden">
       {/* Toast Notification */}
       {toastMessage && (
         <div className="fixed bottom-5 right-5 z-50 bg-gray-900 text-white px-4 py-2.5 rounded-xl shadow-xl text-xs font-semibold flex items-center gap-2 border border-gray-700 animate-in fade-in slide-in-from-bottom-2">
@@ -575,40 +576,41 @@ export default function App() {
         </div>
       )}
 
-      {/* Top Header */}
-      <Header
-        cashierSessionOpen={cashierSessionOpen}
-        onToggleCashierSession={() => {
-          setCashierSessionOpen((prev) => !prev);
-          sound.playItemAdded();
-          showToast(`Sesi kasir telah ${!cashierSessionOpen ? 'dibuka' : 'ditutup'}.`);
-        }}
-        cloudSyncState={cloudSyncState}
-        onManualSync={handleManualSync}
-        onClearAllData={handleClearAllData}
-        onLoadSampleData={handleLoadSampleData}
-        itemCount={items.length}
-        onLogout={handleLogout}
-      />
+      {/* Top Header & Navigation Bar (Edge-to-Edge Sticky) */}
+      <div className="sticky top-0 z-30 w-full max-w-full left-0 right-0 bg-white shadow-xs">
+        <Header
+          cashierSessionOpen={cashierSessionOpen}
+          onToggleCashierSession={() => {
+            setCashierSessionOpen((prev) => !prev);
+            sound.playItemAdded();
+            showToast(`Sesi kasir telah ${!cashierSessionOpen ? 'dibuka' : 'ditutup'}.`);
+          }}
+          cloudSyncState={cloudSyncState}
+          onManualSync={handleManualSync}
+          onClearAllData={handleClearAllData}
+          onLoadSampleData={handleLoadSampleData}
+          itemCount={items.length}
+          onLogout={handleLogout}
+        />
 
-      {/* Main Navigation Tabs */}
-      <NavigationTabs
-        activeTab={activeTab}
-        onSelectTab={(tab) => {
-          setActiveTab(tab);
-          if (tab === 'pos') {
-            setBarcodeModalMode('pos');
-          } else {
-            setBarcodeModalMode('inventory');
-          }
-        }}
-        lowStockCount={lowStockCount}
-        kasbonActiveCount={kasbonActiveCount}
-        expiringCount={expiringCount}
-      />
+        <NavigationTabs
+          activeTab={activeTab}
+          onSelectTab={(tab) => {
+            setActiveTab(tab);
+            if (tab === 'pos') {
+              setBarcodeModalMode('pos');
+            } else {
+              setBarcodeModalMode('inventory');
+            }
+          }}
+          lowStockCount={lowStockCount}
+          kasbonActiveCount={kasbonActiveCount}
+          expiringCount={expiringCount}
+        />
+      </div>
 
       {/* Main Content View Container */}
-      <main className="flex-1 max-w-7xl w-full mx-auto p-3 sm:p-5 lg:p-6">
+      <main className="flex-1 max-w-7xl w-full mx-auto p-3 sm:p-5 lg:p-6 pb-24 md:pb-8">
         {/* Tab 1: KASIR (POS) */}
         {activeTab === 'pos' && (
           <PosCashierView
@@ -708,7 +710,7 @@ export default function App() {
       </main>
 
       {/* Footer Powered By */}
-      <footer className="mt-auto border-t border-gray-200 bg-white py-3 px-4 text-center">
+      <footer className="mt-auto border-t border-gray-200 bg-white py-3 px-4 text-center pb-24 md:pb-3">
         <div className="max-w-7xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-2 text-xs text-gray-500">
           <div>
             <span className="font-semibold text-gray-800">RIYAN STORE</span> — Kp. Barani RT 011 RW 04 Desa Sangiang, Pamarayan | Sistem Manajemen Sembako Terintegrasi
@@ -719,6 +721,25 @@ export default function App() {
           </div>
         </div>
       </footer>
+
+      {/* Fixed Edge-to-Edge Mobile Bottom Navigation Bar */}
+      <BottomNavBar
+        activeTab={activeTab}
+        onSelectTab={(tab) => {
+          setActiveTab(tab);
+          if (tab === 'pos') {
+            setBarcodeModalMode('pos');
+          } else {
+            setBarcodeModalMode('inventory');
+          }
+        }}
+        lowStockCount={lowStockCount}
+        kasbonActiveCount={kasbonActiveCount}
+        onOpenBarcodeScanModal={() => {
+          setBarcodeModalMode(activeTab === 'pos' ? 'pos' : 'inventory');
+          setBarcodeModalOpen(true);
+        }}
+      />
 
       {/* Barcode Scanner Modal (Camera + Laser Gun + Simulated Sembako Barcodes) */}
       <BarcodeScannerModal
