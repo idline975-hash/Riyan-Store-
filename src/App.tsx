@@ -137,6 +137,33 @@ export default function App() {
   // Active Tab: default to 'inventaris' to match the user's screenshot layout immediately
   const [activeTab, setActiveTab] = useState<MainTabType>('inventaris');
 
+  // Desktop Mode & Display Scale (Perkecil Tampilan)
+  const [isDesktopMode, setIsDesktopMode] = useState<boolean>(() => {
+    try {
+      const saved = localStorage.getItem('riyan_store_desktop_mode_v1');
+      return saved === null ? true : saved === 'true'; // Default true for desktop workstation view
+    } catch {
+      return true;
+    }
+  });
+
+  const [zoomScale, setZoomScale] = useState<number>(() => {
+    try {
+      const saved = localStorage.getItem('riyan_store_zoom_scale_v1');
+      return saved ? parseFloat(saved) : 0.85; // Default 85% (agak di perkecil)
+    } catch {
+      return 0.85;
+    }
+  });
+
+  useEffect(() => {
+    try {
+      document.documentElement.style.setProperty('--app-zoom', String(zoomScale));
+    } catch {
+      // ignore
+    }
+  }, [zoomScale]);
+
   // POS State
   const [cart, setCart] = useState<CartItem[]>([]);
   const [cashierSessionOpen, setCashierSessionOpen] = useState(false);
@@ -568,7 +595,12 @@ export default function App() {
   }
 
   return (
-    <div className="min-h-screen w-full max-w-full bg-slate-50 text-gray-900 flex flex-col font-sans selection:bg-teal-200 overflow-x-hidden">
+    <div
+      className={`min-h-screen w-full bg-slate-50 text-gray-900 flex flex-col font-sans selection:bg-teal-200 app-zoom-wrapper dense-workstation ${
+        isDesktopMode ? 'min-w-[1080px]' : 'max-w-full'
+      }`}
+      style={{ zoom: zoomScale }}
+    >
       {/* Toast Notification */}
       {toastMessage && (
         <div className="fixed bottom-5 right-5 z-50 bg-gray-900 text-white px-4 py-2.5 rounded-xl shadow-xl text-xs font-semibold flex items-center gap-2 border border-gray-700 animate-in fade-in slide-in-from-bottom-2">
@@ -591,6 +623,25 @@ export default function App() {
           onLoadSampleData={handleLoadSampleData}
           itemCount={items.length}
           onLogout={handleLogout}
+          isDesktopMode={isDesktopMode}
+          onToggleDesktopMode={() => {
+            setIsDesktopMode((prev) => {
+              const next = !prev;
+              try {
+                localStorage.setItem('riyan_store_desktop_mode_v1', String(next));
+              } catch {}
+              showToast(next ? 'Mode Desktop Diaktifkan (Workstation POS)' : 'Mode Fleksibel Diaktifkan');
+              return next;
+            });
+          }}
+          zoomScale={zoomScale}
+          onSetZoomScale={(scale) => {
+            setZoomScale(scale);
+            try {
+              localStorage.setItem('riyan_store_zoom_scale_v1', String(scale));
+            } catch {}
+            showToast(`Skala tampilan disetel ke ${Math.round(scale * 100)}% (Diperkecil)`);
+          }}
         />
 
         <NavigationTabs
@@ -627,6 +678,7 @@ export default function App() {
               setBarcodeModalOpen(true);
             }}
             cashierName={currentUser}
+            isDesktopMode={isDesktopMode}
           />
         )}
 
@@ -722,24 +774,81 @@ export default function App() {
         </div>
       </footer>
 
-      {/* Fixed Edge-to-Edge Mobile Bottom Navigation Bar */}
-      <BottomNavBar
-        activeTab={activeTab}
-        onSelectTab={(tab) => {
-          setActiveTab(tab);
-          if (tab === 'pos') {
-            setBarcodeModalMode('pos');
-          } else {
-            setBarcodeModalMode('inventory');
-          }
-        }}
-        lowStockCount={lowStockCount}
-        kasbonActiveCount={kasbonActiveCount}
-        onOpenBarcodeScanModal={() => {
-          setBarcodeModalMode(activeTab === 'pos' ? 'pos' : 'inventory');
-          setBarcodeModalOpen(true);
-        }}
-      />
+      {/* Floating Quick Desktop & Scale Controller Bar */}
+      <div className="fixed bottom-4 left-4 z-40 flex items-center gap-2 bg-gray-950/95 text-white backdrop-blur-md px-3 py-1.5 rounded-2xl shadow-2xl border border-gray-700/80 text-xs">
+        <span className="text-gray-400 font-semibold text-[11px]">Skala:</span>
+        <button
+          type="button"
+          onClick={() => {
+            const next = Math.max(0.60, Number((zoomScale - 0.05).toFixed(2)));
+            setZoomScale(next);
+            try {
+              localStorage.setItem('riyan_store_zoom_scale_v1', String(next));
+            } catch {}
+          }}
+          className="w-6 h-6 rounded-lg bg-gray-800 hover:bg-gray-700 active:scale-95 flex items-center justify-center font-bold text-gray-200 cursor-pointer"
+          title="Perkecil Tampilan (-5%)"
+        >
+          -
+        </button>
+        <span className="font-mono font-bold text-teal-400 text-xs min-w-[34px] text-center">
+          {Math.round(zoomScale * 100)}%
+        </span>
+        <button
+          type="button"
+          onClick={() => {
+            const next = Math.min(1.25, Number((zoomScale + 0.05).toFixed(2)));
+            setZoomScale(next);
+            try {
+              localStorage.setItem('riyan_store_zoom_scale_v1', String(next));
+            } catch {}
+          }}
+          className="w-6 h-6 rounded-lg bg-gray-800 hover:bg-gray-700 active:scale-95 flex items-center justify-center font-bold text-gray-200 cursor-pointer"
+          title="Perbesar Tampilan (+5%)"
+        >
+          +
+        </button>
+        <div className="h-3 w-px bg-gray-700 mx-0.5"></div>
+        <button
+          type="button"
+          onClick={() => {
+            setIsDesktopMode((prev) => {
+              const next = !prev;
+              try {
+                localStorage.setItem('riyan_store_desktop_mode_v1', String(next));
+              } catch {}
+              return next;
+            });
+          }}
+          className={`px-2 py-0.5 rounded-lg text-[11px] font-bold transition-colors cursor-pointer ${
+            isDesktopMode ? 'bg-teal-700 text-white' : 'text-gray-400 hover:text-white'
+          }`}
+          title="Beralih Mode Desktop / Fleksibel"
+        >
+          {isDesktopMode ? '🖥️ Desktop ON' : '📱 Fleksibel'}
+        </button>
+      </div>
+
+      {/* Edge-to-Edge Mobile Bottom Navigation Bar (Hidden when in Desktop Mode) */}
+      {!isDesktopMode && (
+        <BottomNavBar
+          activeTab={activeTab}
+          onSelectTab={(tab) => {
+            setActiveTab(tab);
+            if (tab === 'pos') {
+              setBarcodeModalMode('pos');
+            } else {
+              setBarcodeModalMode('inventory');
+            }
+          }}
+          lowStockCount={lowStockCount}
+          kasbonActiveCount={kasbonActiveCount}
+          onOpenBarcodeScanModal={() => {
+            setBarcodeModalMode(activeTab === 'pos' ? 'pos' : 'inventory');
+            setBarcodeModalOpen(true);
+          }}
+        />
+      )}
 
       {/* Barcode Scanner Modal (Camera + Laser Gun + Simulated Sembako Barcodes) */}
       <BarcodeScannerModal

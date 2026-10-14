@@ -36,6 +36,7 @@ interface PosCashierViewProps {
   onCompleteTransaction: (transaction: SaleTransaction, newKasbon?: KasbonRecord) => void;
   onOpenBarcodeScanModal: () => void;
   cashierName: string;
+  isDesktopMode?: boolean;
 }
 
 export const PosCashierView: React.FC<PosCashierViewProps> = ({
@@ -49,6 +50,7 @@ export const PosCashierView: React.FC<PosCashierViewProps> = ({
   onCompleteTransaction,
   onOpenBarcodeScanModal,
   cashierName,
+  isDesktopMode = true,
 }) => {
   const [barcodeInput, setBarcodeInput] = useState('');
   const [searchFilter, setSearchFilter] = useState('');
@@ -197,11 +199,11 @@ export const PosCashierView: React.FC<PosCashierViewProps> = ({
   });
 
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-12 gap-5">
+    <div className={`grid ${isDesktopMode ? 'grid-cols-12' : 'grid-cols-1 lg:grid-cols-12'} gap-4 sm:gap-5`}>
       {/* LEFT COLUMN: Barcode Scanner & Product Catalog (7 cols) */}
-      <div className="lg:col-span-7 space-y-4">
+      <div className={`${isDesktopMode ? 'col-span-7' : 'lg:col-span-7'} space-y-3.5`}>
         {/* Prominent Barcode Scanner Action Bar */}
-        <div className="bg-white rounded-2xl p-4 border-2 border-teal-600/30 shadow-xs">
+        <div className="bg-white rounded-2xl p-3.5 sm:p-4 border-2 border-teal-600/30 shadow-xs">
           <div className="flex items-center justify-between gap-2 mb-2">
             <span className="text-xs font-bold text-teal-950 uppercase tracking-wider flex items-center gap-1.5">
               <BarcodeIcon className="w-4 h-4 text-teal-700" />
@@ -294,7 +296,7 @@ export const PosCashierView: React.FC<PosCashierViewProps> = ({
               </p>
             </div>
           ) : (
-            <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5 max-h-[460px] overflow-y-auto pr-1">
+            <div className={`grid ${isDesktopMode ? 'grid-cols-2 sm:grid-cols-3 xl:grid-cols-4' : 'grid-cols-2 sm:grid-cols-3'} gap-2 max-h-[500px] overflow-y-auto pr-1`}>
               {catalogList.map((item) => {
                 const isOutOfStock = item.stock <= 0;
                 const isLowStock = item.stock <= item.minStock;
@@ -310,7 +312,7 @@ export const PosCashierView: React.FC<PosCashierViewProps> = ({
                         sound.playError();
                       }
                     }}
-                    className={`p-3 rounded-xl border text-left flex flex-col justify-between transition-all cursor-pointer select-none ${
+                    className={`p-2.5 rounded-xl border text-left flex flex-col justify-between transition-all cursor-pointer select-none ${
                       isOutOfStock
                         ? 'bg-gray-100 border-gray-200 opacity-60 cursor-not-allowed'
                         : 'bg-white border-gray-200 hover:border-teal-500 hover:shadow-xs hover:bg-teal-50/20'
@@ -320,12 +322,12 @@ export const PosCashierView: React.FC<PosCashierViewProps> = ({
                       <div className="text-[10px] font-mono text-gray-400 truncate">
                         {item.barcode}
                       </div>
-                      <div className="font-bold text-gray-900 text-xs sm:text-sm line-clamp-2 mt-0.5 leading-snug">
+                      <div className="font-bold text-gray-900 text-xs line-clamp-2 mt-0.5 leading-snug">
                         {item.name}
                       </div>
                     </div>
 
-                    <div className="mt-3 pt-2 border-t border-gray-100 flex items-center justify-between">
+                    <div className="mt-2.5 pt-1.5 border-t border-gray-100 flex items-center justify-between">
                       <div>
                         <div className="text-xs font-bold text-emerald-700">
                           {formatRupiah(item.sellPrice)}
@@ -337,9 +339,9 @@ export const PosCashierView: React.FC<PosCashierViewProps> = ({
                       <button
                         type="button"
                         disabled={isOutOfStock}
-                        className="w-7 h-7 rounded-lg bg-teal-800 text-white flex items-center justify-center hover:bg-teal-900 disabled:bg-gray-300 cursor-pointer"
+                        className="w-6 h-6 rounded-lg bg-teal-800 text-white flex items-center justify-center hover:bg-teal-900 disabled:bg-gray-300 cursor-pointer"
                       >
-                        <Plus className="w-3.5 h-3.5" />
+                        <Plus className="w-3 h-3" />
                       </button>
                     </div>
                   </div>
@@ -351,7 +353,7 @@ export const PosCashierView: React.FC<PosCashierViewProps> = ({
       </div>
 
       {/* RIGHT COLUMN: Active Cart & Checkout Panel (5 cols) */}
-      <div className="lg:col-span-5 space-y-4">
+      <div className={`${isDesktopMode ? 'col-span-5 sticky top-28' : 'lg:col-span-5'} space-y-4`}>
         <div className="bg-white rounded-2xl border border-gray-200/90 shadow-xs flex flex-col overflow-hidden">
           {/* Cart Header */}
           <div className="px-4 py-3 bg-teal-900 text-white flex items-center justify-between">

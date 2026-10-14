@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Store,
   Cloud,
@@ -9,6 +9,10 @@ import {
   Sparkles,
   AlertTriangle,
   MapPin,
+  Monitor,
+  ZoomIn,
+  ZoomOut,
+  Clock,
 } from 'lucide-react';
 import { CloudSyncState } from '../utils/cloudSync';
 
@@ -21,6 +25,10 @@ interface HeaderProps {
   onLoadSampleData: () => void;
   itemCount: number;
   onLogout: () => void;
+  isDesktopMode: boolean;
+  onToggleDesktopMode: () => void;
+  zoomScale: number;
+  onSetZoomScale: (scale: number) => void;
 }
 
 export const Header: React.FC<HeaderProps> = ({
@@ -32,10 +40,34 @@ export const Header: React.FC<HeaderProps> = ({
   onLoadSampleData,
   itemCount,
   onLogout,
+  isDesktopMode,
+  onToggleDesktopMode,
+  zoomScale,
+  onSetZoomScale,
 }) => {
   const [showSyncTooltip, setShowSyncTooltip] = useState(false);
   const [showConfirmClearModal, setShowConfirmClearModal] = useState(false);
   const [showLogoutModal, setShowLogoutModal] = useState(false);
+
+  // Real-time digital clock
+  const [currentTime, setCurrentTime] = useState<string>('');
+
+  useEffect(() => {
+    const updateTime = () => {
+      const now = new Date();
+      setCurrentTime(
+        now.toLocaleTimeString('id-ID', {
+          hour: '2-digit',
+          minute: '2-digit',
+          second: '2-digit',
+          hour12: false,
+        })
+      );
+    };
+    updateTime();
+    const interval = setInterval(updateTime, 1000);
+    return () => clearInterval(interval);
+  }, []);
 
   return (
     <header className="w-full max-w-full bg-white border-b border-gray-200 px-3 sm:px-4 py-2.5 sm:py-3">
@@ -110,8 +142,77 @@ export const Header: React.FC<HeaderProps> = ({
           </div>
         </div>
 
-        {/* Right Controls: Cashier Session, Clear Data, Sample Data, & Logout */}
+        {/* Right Controls: Desktop Mode, Zoom Scale, Clock, Session, Data & Logout */}
         <div className="flex items-center gap-2 flex-wrap self-end md:self-center">
+          {/* Real-time Clock (Desktop POS aesthetic) */}
+          {currentTime && (
+            <div className="hidden sm:inline-flex items-center gap-1.5 px-2.5 py-1.5 bg-slate-100 text-slate-700 rounded-lg text-xs font-mono font-semibold border border-slate-200">
+              <Clock className="w-3.5 h-3.5 text-slate-500" />
+              <span>{currentTime} WIB</span>
+            </div>
+          )}
+
+          {/* Desktop Mode Toggle */}
+          <button
+            type="button"
+            onClick={onToggleDesktopMode}
+            className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold border transition-colors cursor-pointer ${
+              isDesktopMode
+                ? 'bg-teal-900 text-white border-teal-700 shadow-xs'
+                : 'bg-gray-100 text-gray-700 border-gray-300 hover:bg-gray-200'
+            }`}
+            title="Beralih ke Tampilan Desktop Layar Lebar POS Workstation"
+          >
+            <Monitor className={`w-3.5 h-3.5 ${isDesktopMode ? 'text-teal-300' : 'text-gray-500'}`} />
+            <span>Mode Desktop: {isDesktopMode ? 'AKTIF' : 'OFF'}</span>
+          </button>
+
+          {/* Scale / Perkecil Tampilan Controller */}
+          <div className="inline-flex items-center bg-gray-50 border border-gray-300 rounded-lg p-0.5 shadow-2xs">
+            <button
+              type="button"
+              onClick={() => onSetZoomScale(Math.max(0.60, Number((zoomScale - 0.05).toFixed(2))))}
+              className="px-2 py-1 text-gray-700 hover:bg-gray-200 rounded text-xs font-bold cursor-pointer transition-colors"
+              title="Perkecil Tampilan (-5%)"
+            >
+              <ZoomOut className="w-3.5 h-3.5" />
+            </button>
+            <div className="px-2 text-center">
+              <span className="font-mono font-bold text-xs text-gray-800">
+                {Math.round(zoomScale * 100)}%
+              </span>
+              <span className="hidden lg:inline text-[10px] text-teal-700 font-semibold ml-1">
+                (Perkecil)
+              </span>
+            </div>
+            <button
+              type="button"
+              onClick={() => onSetZoomScale(Math.min(1.25, Number((zoomScale + 0.05).toFixed(2))))}
+              className="px-2 py-1 text-gray-700 hover:bg-gray-200 rounded text-xs font-bold cursor-pointer transition-colors"
+              title="Perbesar Tampilan (+5%)"
+            >
+              <ZoomIn className="w-3.5 h-3.5" />
+            </button>
+
+            {/* Quick Presets */}
+            <div className="hidden xl:flex items-center gap-0.5 border-l border-gray-200 pl-1 ml-1">
+              {[0.75, 0.85, 0.90, 1.0].map((preset) => (
+                <button
+                  key={preset}
+                  type="button"
+                  onClick={() => onSetZoomScale(preset)}
+                  className={`px-1.5 py-0.5 text-[10px] rounded font-semibold transition-colors cursor-pointer ${
+                    Math.abs(zoomScale - preset) < 0.02
+                      ? 'bg-teal-700 text-white'
+                      : 'text-gray-500 hover:text-gray-800 hover:bg-gray-200'
+                  }`}
+                >
+                  {Math.round(preset * 100)}%
+                </button>
+              ))}
+            </div>
+          </div>
+
           {/* Sesi Kasir Status Button */}
           <button
             type="button"
