@@ -1,0 +1,59 @@
+@import "tailwindcss";
+
+@layer utilities {
+  .no-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
+  .no-scrollbar {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+}
+
+/* Optimize camera video rendering for lag-free preview */
+#interactive-barcode-reader {
+  width: 100% !important;
+  height: 100% !important;
+  min-height: 220px;
+  position: relative;
+  overflow: hidden;
+  border-radius: 0.75rem;
+}
+
+#interactive-barcode-reader video {
+  width: 100% !important;
+  height: 100% !important;
+  min-height: 220px;
+  max-height: 260px;
+  object-fit: cover !important;
+  border-radius: 0.75rem !important;
+  transform: translateZ(0);
+  will-change: transform;
+}
+
+#interactive-barcode-reader #qr-shaded-region {
+  border-color: rgba(13, 148, 136, 0.4) !important;
+}
+
+@media print {
+
+  body * {
+    visibility: hidden;
+  }
+  .receipt-paper, .receipt-paper * {
+    visibility: visible;
+  }
+  .receipt-paper {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 80mm;
+    margin: 0;
+    padding: 10px;
+    font-size: 12px;
+  }
+  .no-print {
+    display: none !important;
+  }
+}
+

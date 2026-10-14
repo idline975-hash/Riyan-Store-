@@ -1,0 +1,10 @@
+{
+  "name": "Riyan Store - Manajemen Sembako & Barcode POS",
+  "description": "Sistem Kasir POS & Manajemen Stok Sembako Riyan Store - Kp. Barani RT 011 RW 04 Desa Sangiang, Pamarayan",
+  "requestFramePermissions": [
+    "camera"
+  ],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}
