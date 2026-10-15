@@ -13,6 +13,10 @@ import {
   ZoomIn,
   ZoomOut,
   Clock,
+  Smartphone,
+  Download,
+  Wifi,
+  WifiOff,
 } from 'lucide-react';
 import { CloudSyncState } from '../utils/cloudSync';
 
@@ -29,6 +33,10 @@ interface HeaderProps {
   onToggleDesktopMode: () => void;
   zoomScale: number;
   onSetZoomScale: (scale: number) => void;
+  isOnline?: boolean;
+  isPWAInstallable?: boolean;
+  isPWAInstalled?: boolean;
+  onPromptPWAInstall?: () => void;
 }
 
 export const Header: React.FC<HeaderProps> = ({
@@ -44,6 +52,10 @@ export const Header: React.FC<HeaderProps> = ({
   onToggleDesktopMode,
   zoomScale,
   onSetZoomScale,
+  isOnline = true,
+  isPWAInstallable = false,
+  isPWAInstalled = false,
+  onPromptPWAInstall,
 }) => {
   const [showSyncTooltip, setShowSyncTooltip] = useState(false);
   const [showConfirmClearModal, setShowConfirmClearModal] = useState(false);
@@ -212,6 +224,49 @@ export const Header: React.FC<HeaderProps> = ({
               ))}
             </div>
           </div>
+
+          {/* Online / Offline Connectivity Badge */}
+          <div
+            className={`inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-semibold border ${
+              isOnline
+                ? 'bg-emerald-50 text-emerald-800 border-emerald-200'
+                : 'bg-amber-100 text-amber-900 border-amber-300 animate-pulse'
+            }`}
+            title={isOnline ? 'Terhubung ke Jaringan (Realtime Cloud)' : 'Mode Offline — Data tersimpan di perangkat'}
+          >
+            {isOnline ? (
+              <>
+                <Wifi className="w-3.5 h-3.5 text-emerald-600" />
+                <span className="hidden sm:inline">Online</span>
+              </>
+            ) : (
+              <>
+                <WifiOff className="w-3.5 h-3.5 text-amber-700" />
+                <span>Offline</span>
+              </>
+            )}
+          </div>
+
+          {/* PWA Install Button or PWA Standalone Badge */}
+          {isPWAInstallable && onPromptPWAInstall ? (
+            <button
+              type="button"
+              onClick={onPromptPWAInstall}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold bg-gradient-to-r from-teal-600 to-emerald-600 hover:from-teal-700 hover:to-emerald-700 text-white shadow-xs transition-colors cursor-pointer active:scale-95"
+              title="Pasang aplikasi langsung ke layar utama perangkat (PWA)"
+            >
+              <Download className="w-3.5 h-3.5" />
+              <span>Pasang PWA</span>
+            </button>
+          ) : isPWAInstalled ? (
+            <div
+              className="hidden lg:inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-semibold bg-teal-50 text-teal-800 border border-teal-200"
+              title="Aplikasi berjalan dalam mode PWA Standalone di layar utama"
+            >
+              <Smartphone className="w-3.5 h-3.5 text-teal-600" />
+              <span>PWA Terpasang</span>
+            </div>
+          ) : null}
 
           {/* Sesi Kasir Status Button */}
           <button

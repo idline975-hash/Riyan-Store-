@@ -23,7 +23,7 @@ import {
   INITIAL_DAMAGED,
   PRESET_BARCODE_CATALOG,
 } from './data/initialData';
-import { CloudSyncState, getDaysUntilExpiry } from './utils/cloudSync';
+import { CloudSyncState, getDaysUntilExpiry, formatRupiah } from './utils/cloudSync';
 import { sound } from './utils/audio';
 
 import { Header } from './components/Header';
@@ -43,6 +43,16 @@ import { StockOpnameModal } from './components/StockOpnameModal';
 import { ReceiptModal } from './components/ReceiptModal';
 import { LoginLockScreen } from './components/LoginLockScreen';
 import { BottomNavBar } from './components/BottomNavBar';
+import { PWAInstallBanner } from './components/PWAInstallBanner';
+import { OfflineSyncStatusBar } from './components/OfflineSyncStatusBar';
+import { usePWA } from './hooks/usePWA';
+import { realtimeSync } from './utils/realtimeSync';
+import {
+  getOfflineQueue,
+  enqueueOfflineAction,
+  clearOfflineQueue,
+  OfflineAction,
+} from './utils/offlineSyncQueue';
 
 const STORAGE_KEYS = {
   ITEMS: 'riyan_store_items_v1',
@@ -164,13 +174,18 @@ export default function App() {
     }
   }, [zoomScale]);
 
+  // PWA & Background Sync Hooks
+  const pwa = usePWA();
+  const [offlineQueue, setOfflineQueue] = useState<OfflineAction[]>(() => getOfflineQueue());
+  const [isSyncingOfflineQueue, setIsSyncingOfflineQueue] = useState(false);
+
   // POS State
   const [cart, setCart] = useState<CartItem[]>([]);
   const [cashierSessionOpen, setCashierSessionOpen] = useState(false);
 
   // Cloud Sync State
   const [cloudSyncState, setCloudSyncState] = useState<CloudSyncState>({
-    status: 'synced',
+    status: pwa.isOnline ? 'synced' : 'offline',
     lastSyncedAt: new Date(),
     pendingChanges: 0,
     latencyMs: 38,
@@ -203,7 +218,109 @@ export default function App() {
     }, 3000);
   }, []);
 
-  // Sync to localStorage + simulate real-time cloud sync ping
+  // Flush Offline Queue to Cloud (Background Sync)
+  const flushOfflineQueue = useCallback(async () => {
+    const queue = getOfflineQueue();
+    if (queue.length === 0) return;
+
+    setIsSyncingOfflineQueue(true);
+    setCloudSyncState((prev) => ({ ...prev, status: 'syncing' }));
+
+    try {
+      // Simulate remote backend API sync time
+      await new Promise((res) => setTimeout(res, 900));
+
+      clearOfflineQueue();
+      setOfflineQueue([]);
+
+      setCloudSyncState({
+        status: 'synced',
+        lastSyncedAt: new Date(),
+        pendingChanges: 0,
+        latencyMs: 28,
+      });
+
+      sound.playSuccess();
+      showToast(`✅ Sinkronisasi Otomatis: ${queue.length} antrean data offline berhasil dikirim ke server!`);
+    } catch (e) {
+      console.error('[OfflineQueue] Flush error:', e);
+      showToast('Gagal menyinkronkan data offline. Akan dicoba kembali otomatis.');
+    } finally {
+      setIsSyncingOfflineQueue(false);
+    }
+  }, [showToast]);
+
+  // When device returns online, automatically flush background sync queue
+  useEffect(() => {
+    if (pwa.isOnline && offlineQueue.length > 0 && !isSyncingOfflineQueue) {
+      flushOfflineQueue();
+    }
+  }, [pwa.isOnline, offlineQueue.length, isSyncingOfflineQueue, flushOfflineQueue]);
+
+  // Two-way Realtime Synchronization Subscriber
+  useEffect(() => {
+    const unsubscribe = realtimeSync.subscribe((msg) => {
+      console.log('[RealtimeSync] Incoming message from other tab/device:', msg.type);
+
+      if (msg.type === 'TRANSACTION_SYNC') {
+        const { transaction, newKasbon } = msg.payload as any;
+        if (transaction) {
+          setTransactions((prev) => {
+            if (prev.some((t) => t.id === transaction.id)) return prev;
+            return [transaction, ...prev];
+          });
+        }
+        if (newKasbon) {
+          setKasbonList((prev) => {
+            if (prev.some((k) => k.id === newKasbon.id)) return prev;
+            return [newKasbon, ...prev];
+          });
+        }
+        // Deduct items in real-time
+        if (transaction && transaction.items) {
+          setItems((prev) =>
+            prev.map((item) => {
+              const matchedInTx = transaction.items.find((ti: any) => ti.itemId === item.id);
+              if (matchedInTx) {
+                return { ...item, stock: Math.max(0, item.stock - matchedInTx.quantity) };
+              }
+              return item;
+            })
+          );
+        }
+        showToast(`⚡ Sinkronisasi Realtime: Transaksi ${transaction?.invoiceNo} dicatat dari terminal lain.`);
+      } else if (msg.type === 'ITEMS_SYNC') {
+        const { items: newItems } = msg.payload as any;
+        if (newItems) {
+          setItems(newItems);
+          showToast('⚡ Sinkronisasi Realtime: Data inventaris barang telah disinkronkan.');
+        }
+      } else if (msg.type === 'KASBON_SYNC') {
+        const { kasbonList: newKasbonList } = msg.payload as any;
+        if (newKasbonList) {
+          setKasbonList(newKasbonList);
+          showToast('⚡ Sinkronisasi Realtime: Catatan kasbon buku hutang disinkronkan.');
+        }
+      } else if (msg.type === 'SUPPLIERS_SYNC') {
+        const { supplierOrders: newOrders } = msg.payload as any;
+        if (newOrders) {
+          setSupplierOrders(newOrders);
+        }
+      } else if (msg.type === 'OPNAME_SYNC') {
+        const { log, newStock } = msg.payload as any;
+        if (log) {
+          setOpnameLogs((prev) => [log, ...prev]);
+          setItems((prev) =>
+            prev.map((i) => (i.id === log.itemId ? { ...i, stock: newStock } : i))
+          );
+        }
+      }
+    });
+
+    return () => unsubscribe();
+  }, [showToast]);
+
+  // Sync to localStorage + reflect real-time cloud sync status
   useEffect(() => {
     try {
       localStorage.setItem(STORAGE_KEYS.ITEMS, JSON.stringify(items));
@@ -213,6 +330,11 @@ export default function App() {
       localStorage.setItem(STORAGE_KEYS.OPNAME, JSON.stringify(opnameLogs));
       localStorage.setItem(STORAGE_KEYS.DAMAGED, JSON.stringify(damagedLogs));
 
+      if (!pwa.isOnline) {
+        setCloudSyncState((prev) => ({ ...prev, status: 'offline' }));
+        return;
+      }
+
       // Trigger cloud sync pulsing
       setCloudSyncState((prev) => ({ ...prev, status: 'syncing' }));
       const timer = setTimeout(() => {
@@ -220,17 +342,21 @@ export default function App() {
           status: 'synced',
           lastSyncedAt: new Date(),
           pendingChanges: 0,
-          latencyMs: Math.floor(25 + Math.random() * 20),
+          latencyMs: Math.floor(22 + Math.random() * 15),
         });
-      }, 500);
+      }, 400);
 
       return () => clearTimeout(timer);
     } catch (e) {
       console.error('Persistence error:', e);
     }
-  }, [items, transactions, kasbonList, supplierOrders, opnameLogs, damagedLogs]);
+  }, [items, transactions, kasbonList, supplierOrders, opnameLogs, damagedLogs, pwa.isOnline]);
 
   const handleManualSync = () => {
+    if (!pwa.isOnline) {
+      showToast('⚠️ Perangkat sedang offline. Menunggu koneksi internet untuk sinkronisasi.');
+      return;
+    }
     setCloudSyncState((prev) => ({ ...prev, status: 'syncing' }));
     sound.playItemAdded();
     setTimeout(() => {
@@ -238,10 +364,10 @@ export default function App() {
         status: 'synced',
         lastSyncedAt: new Date(),
         pendingChanges: 0,
-        latencyMs: 32,
+        latencyMs: 25,
       });
       showToast('Sinkronisasi cloud realtime berhasil diselesaikan.');
-    }, 600);
+    }, 500);
   };
 
   // Barcode Handler (Handles both POS scanning and Inventory scanning)
@@ -372,6 +498,7 @@ export default function App() {
   // Complete POS Sale Transaction
   const handleCompleteTransaction = (transaction: SaleTransaction, newKasbon?: KasbonRecord) => {
     // 1. Deduct inventory stock immediately
+    let nextItems: SembakoItem[] = [];
     setItems((prevItems) => {
       const updated = prevItems.map((item) => {
         const cartLine = transaction.items.find((line) => line.itemId === item.id);
@@ -384,6 +511,7 @@ export default function App() {
         }
         return item;
       });
+      nextItems = updated;
       return updated;
     });
 
@@ -395,21 +523,52 @@ export default function App() {
       setKasbonList((prev) => [newKasbon, ...prev]);
     }
 
-    // 4. Clear cart & open receipt
+    // 4. Offline Queue & Two-way Realtime Sync
+    if (!pwa.isOnline) {
+      enqueueOfflineAction({
+        type: 'NEW_TRANSACTION',
+        description: `Penjualan Kasir: ${transaction.invoiceNo} (${formatRupiah(transaction.finalAmount)})`,
+        payload: { transaction, newKasbon },
+      });
+      setOfflineQueue(getOfflineQueue());
+      showToast(`✓ Transaksi ${transaction.invoiceNo} tersimpan (Mode Offline - antrean sync aktif).`);
+    } else {
+      realtimeSync.broadcast('TRANSACTION_SYNC', { transaction, newKasbon });
+      showToast(`✓ Transaksi ${transaction.invoiceNo} berhasil disimpan & disinkronkan realtime.`);
+    }
+
+    // 5. Clear cart & open receipt
     setCart([]);
     setCurrentReceiptTx(transaction);
     setReceiptModalOpen(true);
-    showToast(`✓ Transaksi ${transaction.invoiceNo} berhasil disimpan.`);
   };
 
   // Inventory Save (Add or Edit)
   const handleSaveItem = (itemData: SembakoItem, isNew: boolean) => {
+    let nextItems: SembakoItem[] = [];
     if (isNew) {
-      setItems((prev) => [itemData, ...prev]);
+      setItems((prev) => {
+        nextItems = [itemData, ...prev];
+        return nextItems;
+      });
       showToast(`✓ Barang baru "${itemData.name}" berhasil ditambahkan.`);
     } else {
-      setItems((prev) => prev.map((i) => (i.id === itemData.id ? itemData : i)));
+      setItems((prev) => {
+        nextItems = prev.map((i) => (i.id === itemData.id ? itemData : i));
+        return nextItems;
+      });
       showToast(`✓ Data "${itemData.name}" berhasil diperbarui.`);
+    }
+
+    if (!pwa.isOnline) {
+      enqueueOfflineAction({
+        type: 'UPDATE_STOCK',
+        description: `Pembaruan Barang: ${itemData.name}`,
+        payload: { itemData, isNew },
+      });
+      setOfflineQueue(getOfflineQueue());
+    } else {
+      realtimeSync.broadcast('ITEMS_SYNC', { items: nextItems });
     }
   };
 
@@ -475,14 +634,15 @@ export default function App() {
 
   // Pay Kasbon
   const handlePayKasbon = (kasbonId: string, amount: number, note: string) => {
-    setKasbonList((prev) =>
-      prev.map((k) => {
+    let nextKasbon: KasbonRecord[] = [];
+    setKasbonList((prev) => {
+      const updated = prev.map((k) => {
         if (k.id === kasbonId) {
           const newRemaining = Math.max(0, k.remainingDebt - amount);
           return {
             ...k,
             remainingDebt: newRemaining,
-            status: newRemaining === 0 ? 'lunas' : 'belum_lunas',
+            status: (newRemaining === 0 ? 'lunas' : 'belum_lunas') as 'lunas' | 'belum_lunas',
             payments: [
               ...k.payments,
               {
@@ -495,8 +655,22 @@ export default function App() {
           };
         }
         return k;
-      })
-    );
+      });
+      nextKasbon = updated;
+      return updated;
+    });
+
+    if (!pwa.isOnline) {
+      enqueueOfflineAction({
+        type: 'KASBON_PAYMENT',
+        description: `Bayar Kasbon: Rp ${amount.toLocaleString('id-ID')}`,
+        payload: { kasbonId, amount, note },
+      });
+      setOfflineQueue(getOfflineQueue());
+    } else {
+      realtimeSync.broadcast('KASBON_SYNC', { kasbonList: nextKasbon });
+    }
+
     showToast(`✓ Pembayaran kasbon sebesar Rp ${amount.toLocaleString('id-ID')} berhasil dicatat.`);
   };
 
@@ -608,6 +782,18 @@ export default function App() {
         </div>
       )}
 
+      {/* PWA In-App Install Prompt Banner & Automatic Update Alert */}
+      <PWAInstallBanner pwa={pwa} />
+
+      {/* Offline Status & Real-time Background Sync Indicator */}
+      <OfflineSyncStatusBar
+        isOnline={pwa.isOnline}
+        offlineQueue={offlineQueue}
+        isSyncing={isSyncingOfflineQueue}
+        lastSyncedAt={cloudSyncState.lastSyncedAt}
+        onManualFlush={flushOfflineQueue}
+      />
+
       {/* Top Header & Navigation Bar (Edge-to-Edge Sticky) */}
       <div className="sticky top-0 z-30 w-full max-w-full left-0 right-0 bg-white shadow-xs">
         <Header
@@ -642,6 +828,10 @@ export default function App() {
             } catch {}
             showToast(`Skala tampilan disetel ke ${Math.round(scale * 100)}% (Diperkecil)`);
           }}
+          isOnline={pwa.isOnline}
+          isPWAInstallable={pwa.isInstallable}
+          isPWAInstalled={pwa.isInstalled}
+          onPromptPWAInstall={pwa.promptInstall}
         />
 
         <NavigationTabs
