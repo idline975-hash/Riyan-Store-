@@ -151,18 +151,19 @@ export default function App() {
   const [isDesktopMode, setIsDesktopMode] = useState<boolean>(() => {
     try {
       const saved = localStorage.getItem('riyan_store_desktop_mode_v1');
-      return saved === null ? true : saved === 'true'; // Default true for desktop workstation view
+      if (saved !== null) return saved === 'true';
+      return typeof window !== 'undefined' ? window.innerWidth >= 1024 : false;
     } catch {
-      return true;
+      return false;
     }
   });
 
   const [zoomScale, setZoomScale] = useState<number>(() => {
     try {
       const saved = localStorage.getItem('riyan_store_zoom_scale_v1');
-      return saved ? parseFloat(saved) : 0.85; // Default 85% (agak di perkecil)
+      return saved ? parseFloat(saved) : 0.90; // Default 90% on desktop
     } catch {
-      return 0.85;
+      return 0.90;
     }
   });
 
@@ -770,10 +771,10 @@ export default function App() {
 
   return (
     <div
-      className={`min-h-screen w-full bg-slate-50 text-gray-900 flex flex-col font-sans selection:bg-teal-200 app-zoom-wrapper dense-workstation ${
-        isDesktopMode ? 'min-w-[1080px]' : 'max-w-full'
+      className={`min-h-screen w-full max-w-full overflow-x-hidden bg-slate-50 text-gray-900 flex flex-col font-sans selection:bg-teal-200 app-zoom-wrapper ${
+        isDesktopMode ? 'dense-workstation' : ''
       }`}
-      style={{ zoom: zoomScale }}
+      style={{ zoom: typeof window !== 'undefined' && window.innerWidth >= 768 ? zoomScale : 1 }}
     >
       {/* Toast Notification */}
       {toastMessage && (
@@ -964,9 +965,9 @@ export default function App() {
         </div>
       </footer>
 
-      {/* Floating Quick Desktop & Scale Controller Bar */}
-      <div className="fixed bottom-4 left-4 z-40 flex items-center gap-2 bg-gray-950/95 text-white backdrop-blur-md px-3 py-1.5 rounded-2xl shadow-2xl border border-gray-700/80 text-xs">
-        <span className="text-gray-400 font-semibold text-[11px]">Skala:</span>
+      {/* Floating Quick Desktop & Scale Controller Bar (Visible on Tablet/Desktop, hidden on Mobile to avoid nav overlap) */}
+      <div className="hidden md:flex fixed bottom-4 left-4 z-30 items-center gap-2 bg-gray-950/95 text-white backdrop-blur-md px-3 py-1.5 rounded-2xl shadow-2xl border border-gray-700/80 text-xs">
+        <span className="text-gray-400 font-semibold text-[11px]">Skala Layar:</span>
         <button
           type="button"
           onClick={() => {
@@ -1013,32 +1014,30 @@ export default function App() {
           className={`px-2 py-0.5 rounded-lg text-[11px] font-bold transition-colors cursor-pointer ${
             isDesktopMode ? 'bg-teal-700 text-white' : 'text-gray-400 hover:text-white'
           }`}
-          title="Beralih Mode Desktop / Fleksibel"
+          title="Beralih Mode Kerapatan Desktop"
         >
-          {isDesktopMode ? '🖥️ Desktop ON' : '📱 Fleksibel'}
+          {isDesktopMode ? '🖥️ Desktop Kerapatan' : '📱 Responsif Standar'}
         </button>
       </div>
 
-      {/* Edge-to-Edge Mobile Bottom Navigation Bar (Hidden when in Desktop Mode) */}
-      {!isDesktopMode && (
-        <BottomNavBar
-          activeTab={activeTab}
-          onSelectTab={(tab) => {
-            setActiveTab(tab);
-            if (tab === 'pos') {
-              setBarcodeModalMode('pos');
-            } else {
-              setBarcodeModalMode('inventory');
-            }
-          }}
-          lowStockCount={lowStockCount}
-          kasbonActiveCount={kasbonActiveCount}
-          onOpenBarcodeScanModal={() => {
-            setBarcodeModalMode(activeTab === 'pos' ? 'pos' : 'inventory');
-            setBarcodeModalOpen(true);
-          }}
-        />
-      )}
+      {/* Edge-to-Edge Mobile Bottom Navigation Bar (Active on Mobile Screens md:hidden) */}
+      <BottomNavBar
+        activeTab={activeTab}
+        onSelectTab={(tab) => {
+          setActiveTab(tab);
+          if (tab === 'pos') {
+            setBarcodeModalMode('pos');
+          } else {
+            setBarcodeModalMode('inventory');
+          }
+        }}
+        lowStockCount={lowStockCount}
+        kasbonActiveCount={kasbonActiveCount}
+        onOpenBarcodeScanModal={() => {
+          setBarcodeModalMode(activeTab === 'pos' ? 'pos' : 'inventory');
+          setBarcodeModalOpen(true);
+        }}
+      />
 
       {/* Barcode Scanner Modal (Camera + Laser Gun + Simulated Sembako Barcodes) */}
       <BarcodeScannerModal

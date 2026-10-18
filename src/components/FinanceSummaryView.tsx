@@ -57,9 +57,9 @@ export const FinanceSummaryView: React.FC<FinanceSummaryViewProps> = ({
   return (
     <div className="space-y-5">
       {/* Metrics Row */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-2.5 sm:gap-4">
         {/* Total Omset */}
-        <div className="bg-white p-5 rounded-2xl border border-gray-200 shadow-xs">
+        <div className="bg-white p-3.5 sm:p-5 rounded-2xl border border-gray-200 shadow-xs">
           <div className="text-[11px] font-bold text-gray-500 uppercase">Total Pendapatan / Omset</div>
           <div className="text-2xl font-bold text-teal-900 mt-1">{formatRupiah(totalRevenue)}</div>
           <div className="text-xs text-gray-500 mt-1">{transactions.length} Transaksi Penjualan</div>

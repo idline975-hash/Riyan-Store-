@@ -271,8 +271,8 @@ export const InventoryView: React.FC<InventoryViewProps> = ({
             </div>
           </div>
 
-          {/* Table */}
-          <div className="overflow-x-auto">
+          {/* Desktop & Tablet Workstation Table */}
+          <div className="hidden md:block overflow-x-auto">
             <table className="w-full text-left border-collapse">
               <thead>
                 <tr className="border-b border-gray-200 bg-gray-50/75 text-[11px] font-bold text-gray-500 uppercase tracking-wider">
@@ -451,6 +451,150 @@ export const InventoryView: React.FC<InventoryViewProps> = ({
                 )}
               </tbody>
             </table>
+          </div>
+
+          {/* Mobile Responsive Card List (visible on small screens < md) */}
+          <div className="block md:hidden divide-y divide-gray-100">
+            {filteredItems.length === 0 ? (
+              <div className="py-10 text-center text-gray-400 px-4">
+                <Boxes className="w-10 h-10 mx-auto text-gray-300 mb-2" />
+                <p className="font-semibold text-gray-700 text-xs">Tidak ada barang yang cocok</p>
+                {items.length === 0 && (
+                  <div className="flex justify-center gap-2 pt-2">
+                    <button
+                      type="button"
+                      onClick={onOpenAddItem}
+                      className="px-3 py-1.5 bg-teal-800 text-white rounded-xl text-xs font-bold"
+                    >
+                      + Tambah Baru
+                    </button>
+                    <button
+                      type="button"
+                      onClick={onOpenBarcodeScanModal}
+                      className="px-3 py-1.5 bg-gray-100 text-gray-700 rounded-xl text-xs font-semibold"
+                    >
+                      Scan Barcode
+                    </button>
+                  </div>
+                )}
+              </div>
+            ) : (
+              filteredItems.map((item) => {
+                const daysLeft = getDaysUntilExpiry(item.expiryDate);
+                const isExpiring = daysLeft <= 30;
+                const isLowStock = item.stock <= item.minStock;
+
+                return (
+                  <div key={item.id} className="p-3.5 space-y-2.5 hover:bg-teal-50/20 transition-colors">
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-1.5 flex-wrap">
+                          <span className="font-mono text-[10px] text-gray-500 bg-gray-100 px-1.5 py-0.5 rounded-sm">
+                            {item.barcode}
+                          </span>
+                          <span className="bg-teal-50 text-teal-800 text-[10px] font-semibold px-2 py-0.5 rounded-full">
+                            {item.category}
+                          </span>
+                        </div>
+                        <h4 className="font-bold text-gray-900 text-sm mt-1 leading-snug">
+                          {item.name}
+                        </h4>
+                        <p className="text-[11px] text-gray-500 mt-0.5">
+                          Konversi: {item.unitConversion || `1 ${item.unitBase}`}
+                        </p>
+                      </div>
+
+                      {/* Stock Badge */}
+                      <div className="text-right flex-shrink-0">
+                        <div
+                          className={`text-base font-black ${
+                            item.stock === 0
+                              ? 'text-rose-600'
+                              : isLowStock
+                              ? 'text-amber-600'
+                              : 'text-emerald-700'
+                          }`}
+                        >
+                          {item.stock} <span className="text-xs font-semibold text-gray-600">{item.unitBase}</span>
+                        </div>
+                        {isLowStock && (
+                          <span className="inline-flex items-center gap-0.5 text-[9px] font-bold text-amber-700 bg-amber-100 px-1.5 py-0.5 rounded-sm">
+                            Min: {item.minStock}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Price & Expiry Badges */}
+                    <div className="flex items-center justify-between text-xs bg-gray-50 p-2 rounded-xl">
+                      <div>
+                        <span className="text-[10px] text-gray-400 block">Harga Jual:</span>
+                        <span className="font-bold text-emerald-700 font-mono text-xs sm:text-sm">
+                          {formatRupiah(item.sellPrice)}
+                        </span>
+                        <span className="text-[10px] text-gray-400 ml-1.5">
+                          (Modal: {formatRupiah(item.buyPrice)})
+                        </span>
+                      </div>
+                      <div className="text-right">
+                        <span className="text-[10px] text-gray-400 block">Kadaluwarsa:</span>
+                        <span
+                          className={`text-[11px] font-semibold ${
+                            isExpiring ? 'text-rose-600 font-bold' : 'text-gray-700'
+                          }`}
+                        >
+                          {isExpiring && daysLeft <= 7
+                            ? `H-${daysLeft} Kritis!`
+                            : isExpiring
+                            ? `H-${daysLeft}`
+                            : formatDateIndo(item.expiryDate)}
+                        </span>
+                      </div>
+                    </div>
+
+                    {/* Quick Touch Action Buttons */}
+                    <div className="grid grid-cols-4 gap-1.5 pt-1">
+                      <button
+                        type="button"
+                        onClick={() => onOpenRestock(item)}
+                        className="py-1.5 px-2 bg-teal-50 hover:bg-teal-100 text-teal-800 rounded-lg text-xs font-bold flex items-center justify-center gap-1 transition-colors cursor-pointer border border-teal-200"
+                        title="Restock"
+                      >
+                        <ArrowDownCircle className="w-3.5 h-3.5" />
+                        <span>Restock</span>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => onOpenOpname(item)}
+                        className="py-1.5 px-2 bg-blue-50 hover:bg-blue-100 text-blue-800 rounded-lg text-xs font-bold flex items-center justify-center gap-1 transition-colors cursor-pointer border border-blue-200"
+                        title="Opname"
+                      >
+                        <ClipboardCheck className="w-3.5 h-3.5" />
+                        <span>Opname</span>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => onOpenEditItem(item)}
+                        className="py-1.5 px-2 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg text-xs font-bold flex items-center justify-center gap-1 transition-colors cursor-pointer border border-gray-200"
+                        title="Edit"
+                      >
+                        <Edit2 className="w-3.5 h-3.5" />
+                        <span>Edit</span>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setItemToDelete(item)}
+                        className="py-1.5 px-2 bg-rose-50 hover:bg-rose-100 text-rose-700 rounded-lg text-xs font-bold flex items-center justify-center gap-1 transition-colors cursor-pointer border border-rose-200"
+                        title="Hapus"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                        <span>Hapus</span>
+                      </button>
+                    </div>
+                  </div>
+                );
+              })
+            )}
           </div>
         </div>
       )}

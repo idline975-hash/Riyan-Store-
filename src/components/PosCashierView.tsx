@@ -199,9 +199,9 @@ export const PosCashierView: React.FC<PosCashierViewProps> = ({
   });
 
   return (
-    <div className={`grid ${isDesktopMode ? 'grid-cols-12' : 'grid-cols-1 lg:grid-cols-12'} gap-4 sm:gap-5`}>
-      {/* LEFT COLUMN: Barcode Scanner & Product Catalog (7 cols) */}
-      <div className={`${isDesktopMode ? 'col-span-7' : 'lg:col-span-7'} space-y-3.5`}>
+    <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 sm:gap-5 w-full max-w-full">
+      {/* LEFT COLUMN: Barcode Scanner & Product Catalog (Full on Mobile, 7 cols on Desktop) */}
+      <div className="w-full lg:col-span-7 space-y-3.5">
         {/* Prominent Barcode Scanner Action Bar */}
         <div className="bg-white rounded-2xl p-3.5 sm:p-4 border-2 border-teal-600/30 shadow-xs">
           <div className="flex items-center justify-between gap-2 mb-2">
@@ -352,8 +352,8 @@ export const PosCashierView: React.FC<PosCashierViewProps> = ({
         </div>
       </div>
 
-      {/* RIGHT COLUMN: Active Cart & Checkout Panel (5 cols) */}
-      <div className={`${isDesktopMode ? 'col-span-5 sticky top-28' : 'lg:col-span-5'} space-y-4`}>
+      {/* RIGHT COLUMN: Active Cart & Checkout Panel (Full on Mobile, 5 cols on Desktop) */}
+      <div id="checkout-cart-panel" className="w-full lg:col-span-5 space-y-4 lg:sticky lg:top-28">
         <div className="bg-white rounded-2xl border border-gray-200/90 shadow-xs flex flex-col overflow-hidden">
           {/* Cart Header */}
           <div className="px-4 py-3 bg-teal-900 text-white flex items-center justify-between">
@@ -681,6 +681,31 @@ export const PosCashierView: React.FC<PosCashierViewProps> = ({
               Tutup & Konfirmasi Bayar
             </button>
           </div>
+        </div>
+      )}
+
+      {/* Floating Quick Mobile Cart Bar */}
+      {cart.length > 0 && (
+        <div className="lg:hidden fixed bottom-16 left-3 right-3 z-30 flex items-center justify-between bg-teal-950/95 text-white px-4 py-2.5 rounded-2xl shadow-2xl border border-teal-700/80 backdrop-blur-md animate-in slide-in-from-bottom-2">
+          <div className="flex items-center gap-2">
+            <span className="bg-teal-700 text-white text-xs px-2.5 py-0.5 rounded-full font-bold">
+              {cart.reduce((a, b) => a + b.quantity, 0)} Item
+            </span>
+            <span className="font-bold text-sm text-teal-300 font-mono">
+              {formatRupiah(finalTotal)}
+            </span>
+          </div>
+          <button
+            type="button"
+            onClick={() => {
+              const el = document.getElementById('checkout-cart-panel');
+              el?.scrollIntoView({ behavior: 'smooth' });
+            }}
+            className="px-3 py-1.5 bg-emerald-500 hover:bg-emerald-600 text-slate-950 font-bold text-xs rounded-xl shadow-xs transition-colors cursor-pointer flex items-center gap-1"
+          >
+            <span>Bayar Kasir</span>
+            <span className="text-sm">→</span>
+          </button>
         </div>
       )}
     </div>

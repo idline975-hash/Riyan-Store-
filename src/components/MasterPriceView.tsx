@@ -66,7 +66,8 @@ export const MasterPriceView: React.FC<MasterPriceViewProps> = ({
           </div>
         </div>
 
-        <div className="overflow-x-auto">
+        {/* Desktop Table View */}
+        <div className="hidden md:block overflow-x-auto">
           <table className="w-full text-left border-collapse text-xs sm:text-sm">
             <thead>
               <tr className="border-b border-gray-200 bg-gray-50 text-[11px] font-bold text-gray-500 uppercase tracking-wider">
@@ -186,6 +187,126 @@ export const MasterPriceView: React.FC<MasterPriceViewProps> = ({
               })}
             </tbody>
           </table>
+        </div>
+
+        {/* Mobile Responsive Cards */}
+        <div className="block md:hidden divide-y divide-gray-100">
+          {filtered.length === 0 ? (
+            <div className="py-8 text-center text-gray-400 text-xs">
+              Belum ada data barang.
+            </div>
+          ) : (
+            filtered.map((item) => {
+              const isEditing = editingItemId === item.id;
+              const marginRp = item.sellPrice - item.buyPrice;
+              const marginPercent = item.buyPrice > 0 ? ((marginRp / item.buyPrice) * 100).toFixed(1) : '0';
+
+              return (
+                <div key={item.id} className="p-3.5 space-y-3">
+                  <div>
+                    <h4 className="font-bold text-gray-900 text-sm">{item.name}</h4>
+                    <div className="text-[11px] text-gray-500 font-mono mt-0.5">
+                      {item.barcode} • {item.unitBase} ({item.unitConversion})
+                    </div>
+                  </div>
+
+                  {isEditing ? (
+                    <div className="bg-teal-50/50 p-3 rounded-xl border border-teal-200 space-y-2.5">
+                      <div className="grid grid-cols-2 gap-2 text-xs">
+                        <div>
+                          <label className="text-[10px] font-bold text-gray-600 block mb-0.5">Harga Beli (Modal)</label>
+                          <input
+                            type="number"
+                            step="500"
+                            value={editBuyPrice}
+                            onChange={(e) => setEditBuyPrice(parseInt(e.target.value) || 0)}
+                            className="w-full px-2 py-1.5 border border-gray-300 rounded-lg text-xs font-semibold bg-white"
+                          />
+                        </div>
+                        <div>
+                          <label className="text-[10px] font-bold text-emerald-800 block mb-0.5">Harga Eceran</label>
+                          <input
+                            type="number"
+                            step="500"
+                            value={editSellPrice}
+                            onChange={(e) => setEditSellPrice(parseInt(e.target.value) || 0)}
+                            className="w-full px-2 py-1.5 border border-teal-400 rounded-lg text-xs font-bold text-emerald-700 bg-white"
+                          />
+                        </div>
+                      </div>
+
+                      <div className="grid grid-cols-2 gap-2 text-xs">
+                        <div>
+                          <label className="text-[10px] font-bold text-blue-800 block mb-0.5">Harga Grosir</label>
+                          <input
+                            type="number"
+                            step="500"
+                            value={editWholesalePrice}
+                            onChange={(e) => setEditWholesalePrice(parseInt(e.target.value) || 0)}
+                            className="w-full px-2 py-1.5 border border-blue-400 rounded-lg text-xs font-bold text-blue-700 bg-white"
+                          />
+                        </div>
+                        <div>
+                          <label className="text-[10px] font-bold text-gray-600 block mb-0.5">Min. Grosir Qty</label>
+                          <input
+                            type="number"
+                            min="1"
+                            value={editMinQty}
+                            onChange={(e) => setEditMinQty(parseInt(e.target.value) || 1)}
+                            className="w-full px-2 py-1.5 border border-gray-300 rounded-lg text-xs font-semibold bg-white"
+                          />
+                        </div>
+                      </div>
+
+                      <div className="flex gap-2 pt-1">
+                        <button
+                          type="button"
+                          onClick={() => setEditingItemId(null)}
+                          className="flex-1 py-1.5 bg-gray-200 text-gray-700 rounded-lg text-xs font-semibold cursor-pointer"
+                        >
+                          Batal
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => saveEdit(item.id)}
+                          className="flex-1 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-bold cursor-pointer"
+                        >
+                          Simpan
+                        </button>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="space-y-2">
+                      <div className="grid grid-cols-2 gap-2 text-xs bg-gray-50 p-2.5 rounded-xl">
+                        <div>
+                          <span className="text-[10px] text-gray-400 block">Harga Modal (HPP):</span>
+                          <span className="font-semibold text-gray-700 font-mono">{formatRupiah(item.buyPrice)}</span>
+                          <span className="text-[10px] text-gray-400 block mt-1">Eceran:</span>
+                          <span className="font-bold text-emerald-700 font-mono text-sm">{formatRupiah(item.sellPrice)}</span>
+                        </div>
+                        <div>
+                          <span className="text-[10px] text-gray-400 block">Margin Untung:</span>
+                          <span className="inline-block text-[11px] font-bold text-emerald-800 bg-emerald-100 px-1.5 py-0.5 rounded-sm">
+                            +{formatRupiah(marginRp)} ({marginPercent}%)
+                          </span>
+                          <span className="text-[10px] text-gray-400 block mt-1">Grosir (Min {item.minWholesaleQty}):</span>
+                          <span className="font-bold text-blue-700 font-mono">{formatRupiah(item.wholesalePrice)}</span>
+                        </div>
+                      </div>
+
+                      <button
+                        type="button"
+                        onClick={() => startEdit(item)}
+                        className="w-full py-1.5 bg-teal-50 hover:bg-teal-100 text-teal-800 border border-teal-200 rounded-lg text-xs font-bold transition-colors cursor-pointer"
+                      >
+                        Ubah Harga Barang Ini
+                      </button>
+                    </div>
+                  )}
+                </div>
+              );
+            })
+          )}
         </div>
       </div>
     </div>

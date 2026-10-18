@@ -164,11 +164,11 @@ export const Header: React.FC<HeaderProps> = ({
             </div>
           )}
 
-          {/* Desktop Mode Toggle */}
+          {/* Desktop Mode Toggle (Visible on sm and up) */}
           <button
             type="button"
             onClick={onToggleDesktopMode}
-            className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold border transition-colors cursor-pointer ${
+            className={`hidden sm:inline-flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-lg text-xs font-bold border transition-colors cursor-pointer ${
               isDesktopMode
                 ? 'bg-teal-900 text-white border-teal-700 shadow-xs'
                 : 'bg-gray-100 text-gray-700 border-gray-300 hover:bg-gray-200'
@@ -176,11 +176,11 @@ export const Header: React.FC<HeaderProps> = ({
             title="Beralih ke Tampilan Desktop Layar Lebar POS Workstation"
           >
             <Monitor className={`w-3.5 h-3.5 ${isDesktopMode ? 'text-teal-300' : 'text-gray-500'}`} />
-            <span>Mode Desktop: {isDesktopMode ? 'AKTIF' : 'OFF'}</span>
+            <span>Desktop: {isDesktopMode ? 'ON' : 'OFF'}</span>
           </button>
 
-          {/* Scale / Perkecil Tampilan Controller */}
-          <div className="inline-flex items-center bg-gray-50 border border-gray-300 rounded-lg p-0.5 shadow-2xs">
+          {/* Scale / Perkecil Tampilan Controller (Visible on md and up) */}
+          <div className="hidden md:inline-flex items-center bg-gray-50 border border-gray-300 rounded-lg p-0.5 shadow-2xs">
             <button
               type="button"
               onClick={() => onSetZoomScale(Math.max(0.60, Number((zoomScale - 0.05).toFixed(2))))}

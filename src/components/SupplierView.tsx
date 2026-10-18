@@ -114,7 +114,8 @@ export const SupplierView: React.FC<SupplierViewProps> = ({
           </div>
         </div>
 
-        <div className="overflow-x-auto">
+        {/* Desktop Table View */}
+        <div className="hidden md:block overflow-x-auto">
           <table className="w-full text-left border-collapse text-xs sm:text-sm">
             <thead>
               <tr className="border-b border-gray-200 bg-gray-50 text-[11px] font-bold text-gray-500 uppercase tracking-wider">
@@ -163,6 +164,60 @@ export const SupplierView: React.FC<SupplierViewProps> = ({
               ))}
             </tbody>
           </table>
+        </div>
+
+        {/* Mobile Responsive Cards */}
+        <div className="block md:hidden divide-y divide-gray-100">
+          {filtered.length === 0 ? (
+            <div className="py-8 text-center text-gray-400 text-xs">
+              Belum ada faktur supplier.
+            </div>
+          ) : (
+            filtered.map((order) => (
+              <div key={order.id} className="p-3.5 space-y-2">
+                <div className="flex items-start justify-between gap-2">
+                  <div>
+                    <h4 className="font-bold text-gray-900 text-sm">{order.supplierName}</h4>
+                    <span className="font-mono text-[10px] text-gray-500 bg-gray-100 px-1.5 py-0.5 rounded-sm">
+                      {order.poNumber}
+                    </span>
+                  </div>
+                  <span
+                    className={`inline-block px-2.5 py-0.5 rounded-full text-[11px] font-bold uppercase ${
+                      order.status === 'lunas'
+                        ? 'bg-emerald-100 text-emerald-800'
+                        : order.status === 'hutang_tempo'
+                        ? 'bg-amber-100 text-amber-800'
+                        : 'bg-blue-100 text-blue-800'
+                    }`}
+                  >
+                    {order.status === 'hutang_tempo' ? 'Hutang' : order.status}
+                  </span>
+                </div>
+
+                <div className="flex items-center justify-between text-xs bg-gray-50 p-2 rounded-xl">
+                  <div>
+                    <div className="text-[10px] text-gray-400">Total Tagihan:</div>
+                    <div className="font-bold text-gray-900 font-mono text-sm">{formatRupiah(order.totalAmount)}</div>
+                  </div>
+                  <div className="text-right">
+                    <div className="text-[10px] text-gray-400">Jatuh Tempo:</div>
+                    <div className="font-semibold text-rose-600 text-[11px]">{formatDateIndo(order.dueDate)}</div>
+                  </div>
+                </div>
+
+                {order.status === 'hutang_tempo' && (
+                  <button
+                    type="button"
+                    onClick={() => onUpdateOrderStatus(order.id, 'lunas')}
+                    className="w-full py-1.5 bg-teal-800 hover:bg-teal-900 text-white rounded-lg text-xs font-bold transition-colors cursor-pointer"
+                  >
+                    Tandai Faktur Telah Lunas
+                  </button>
+                )}
+              </div>
+            ))
+          )}
         </div>
       </div>
 
