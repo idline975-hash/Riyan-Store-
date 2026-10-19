@@ -42,7 +42,7 @@ import { StockInModal } from './components/StockInModal';
 import { StockOpnameModal } from './components/StockOpnameModal';
 import { ReceiptModal } from './components/ReceiptModal';
 import { LoginLockScreen } from './components/LoginLockScreen';
-import { BottomNavBar } from './components/BottomNavBar';
+import { Sidebar } from './components/Sidebar';
 import { PWAInstallBanner } from './components/PWAInstallBanner';
 import { OfflineSyncStatusBar } from './components/OfflineSyncStatusBar';
 import { usePWA } from './hooks/usePWA';
@@ -157,6 +157,8 @@ export default function App() {
       return false;
     }
   });
+
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
 
   const [zoomScale, setZoomScale] = useState<number>(() => {
     try {
@@ -798,6 +800,7 @@ export default function App() {
       {/* Top Header & Navigation Bar (Edge-to-Edge Sticky) */}
       <div className="sticky top-0 z-30 w-full max-w-full left-0 right-0 bg-white shadow-xs">
         <Header
+          onOpenSidebar={() => setIsSidebarOpen(true)}
           cashierSessionOpen={cashierSessionOpen}
           onToggleCashierSession={() => {
             setCashierSessionOpen((prev) => !prev);
@@ -833,6 +836,14 @@ export default function App() {
           isPWAInstallable={pwa.isInstallable}
           isPWAInstalled={pwa.isInstalled}
           onPromptPWAInstall={pwa.promptInstall}
+        />
+        <Sidebar
+          isOpen={isSidebarOpen}
+          onClose={() => setIsSidebarOpen(false)}
+          activeTab={activeTab}
+          onSelectTab={setActiveTab}
+          lowStockCount={items.filter((i) => i.stock <= i.minStock).length}
+          kasbonActiveCount={kasbonList.filter((k) => k.status === 'belum_lunas').length}
         />
 
         <NavigationTabs
@@ -1020,24 +1031,6 @@ export default function App() {
         </button>
       </div>
 
-      {/* Edge-to-Edge Mobile Bottom Navigation Bar (Active on Mobile Screens md:hidden) */}
-      <BottomNavBar
-        activeTab={activeTab}
-        onSelectTab={(tab) => {
-          setActiveTab(tab);
-          if (tab === 'pos') {
-            setBarcodeModalMode('pos');
-          } else {
-            setBarcodeModalMode('inventory');
-          }
-        }}
-        lowStockCount={lowStockCount}
-        kasbonActiveCount={kasbonActiveCount}
-        onOpenBarcodeScanModal={() => {
-          setBarcodeModalMode(activeTab === 'pos' ? 'pos' : 'inventory');
-          setBarcodeModalOpen(true);
-        }}
-      />
 
       {/* Barcode Scanner Modal (Camera + Laser Gun + Simulated Sembako Barcodes) */}
       <BarcodeScannerModal

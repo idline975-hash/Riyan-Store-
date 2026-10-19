@@ -258,6 +258,62 @@ export const KasbonView: React.FC<KasbonViewProps> = ({
           </table>
         </div>
 
+        {/* Mobile Card List View */}
+        <div className="md:hidden divide-y divide-gray-100">
+          {filtered.length === 0 ? (
+            <div className="py-10 text-center text-gray-400 text-xs">
+              Tidak ada catatan kasbon yang ditemukan.
+            </div>
+          ) : (
+            filtered.map((kasbon) => (
+              <div key={kasbon.id} className="p-4 space-y-3">
+                <div className="flex justify-between items-start">
+                  <div>
+                    <div className="font-bold text-gray-900 text-sm">{kasbon.customerName}</div>
+                    <div className="text-xs text-gray-500 flex items-center gap-1 mt-0.5">
+                      <Phone className="w-3 h-3 text-emerald-600" />
+                      {kasbon.customerPhone}
+                    </div>
+                  </div>
+                  <span
+                    className={`px-2 py-0.5 rounded-full text-[10px] font-bold uppercase ${
+                      kasbon.status === 'lunas'
+                        ? 'bg-emerald-100 text-emerald-800'
+                        : 'bg-rose-100 text-rose-800'
+                    }`}
+                  >
+                    {kasbon.status === 'lunas' ? 'Lunas' : 'Belum Lunas'}
+                  </span>
+                </div>
+                <div className="flex justify-between items-center text-xs">
+                  <div className="text-gray-500">
+                    <div>{formatDateIndo(kasbon.date)}</div>
+                    <div className="text-rose-600 font-medium">Tempo: {formatDateIndo(kasbon.dueDate)}</div>
+                  </div>
+                  <div className="text-right">
+                    <div className="text-gray-500">Sisa:</div>
+                    <div className={`font-black text-sm ${kasbon.remainingDebt > 0 ? 'text-rose-600' : 'text-emerald-700'}`}>
+                      {formatRupiah(kasbon.remainingDebt)}
+                    </div>
+                  </div>
+                </div>
+                {kasbon.status === 'belum_lunas' && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setSelectedKasbon(kasbon);
+                      setPayAmount(kasbon.remainingDebt);
+                    }}
+                    className="w-full py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-bold transition-colors cursor-pointer"
+                  >
+                    Bayar Kasbon
+                  </button>
+                )}
+              </div>
+            ))
+          )}
+        </div>
+
         {/* Mobile Responsive Cards */}
         <div className="block md:hidden divide-y divide-gray-100">
           {filtered.length === 0 ? (

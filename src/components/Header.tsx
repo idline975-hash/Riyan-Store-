@@ -21,6 +21,7 @@ import {
 import { CloudSyncState } from '../utils/cloudSync';
 
 interface HeaderProps {
+  onOpenSidebar: () => void;
   cashierSessionOpen: boolean;
   onToggleCashierSession: () => void;
   cloudSyncState: CloudSyncState;
@@ -40,6 +41,7 @@ interface HeaderProps {
 }
 
 export const Header: React.FC<HeaderProps> = ({
+  onOpenSidebar,
   cashierSessionOpen,
   onToggleCashierSession,
   cloudSyncState,
@@ -86,12 +88,25 @@ export const Header: React.FC<HeaderProps> = ({
       <div className="max-w-7xl mx-auto flex flex-col md:flex-row md:items-center md:justify-between gap-3">
         {/* Brand & Store Identity */}
         <div className="flex items-center gap-3">
+          {/* Hamburger Menu Button */}
+          <button
+            type="button"
+            onClick={onOpenSidebar}
+            className="p-2 text-gray-600 hover:bg-gray-100 rounded-lg md:hidden"
+          >
+            <div className="space-y-1">
+              <div className="w-5 h-0.5 bg-gray-600" />
+              <div className="w-5 h-0.5 bg-gray-600" />
+              <div className="w-5 h-0.5 bg-gray-600" />
+            </div>
+          </button>
           <div className="w-12 h-12 bg-teal-800 text-white rounded-2xl flex items-center justify-center shadow-xs flex-shrink-0">
             <Store className="w-7 h-7" />
           </div>
           <div>
             <div className="flex items-center gap-2 flex-wrap">
               <h1 className="text-xl font-bold tracking-tight text-gray-900">RIYAN STORE</h1>
+
               <span className="inline-flex items-center px-2 py-0.5 rounded-md text-xs font-semibold bg-amber-100 text-amber-800 border border-amber-200">
                 Pemilik (Admin)
               </span>
