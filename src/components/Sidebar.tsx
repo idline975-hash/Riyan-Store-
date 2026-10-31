@@ -7,6 +7,7 @@ import {
   Truck,
   LineChart,
   Tag,
+  Settings,
   X,
 } from 'lucide-react';
 import { MainTabType } from '../types';
@@ -32,10 +33,10 @@ export const Sidebar: React.FC<SidebarProps> = ({
     { id: 'pos', label: 'Kasir (POS)', icon: ShoppingBag },
     { id: 'riwayat', label: 'Riwayat Transaksi', icon: Clock },
     { id: 'kasbon', label: `Kasbon (${kasbonActiveCount})`, icon: CreditCard },
-    { id: 'inventaris', label: `Stok (${lowStockCount})`, icon: Boxes },
-    { id: 'supplier', label: 'Supplier', icon: Truck },
-    { id: 'keuangan', label: 'Keuangan', icon: LineChart },
-    { id: 'master_harga', label: 'Harga', icon: Tag },
+    { id: 'inventaris', label: `Stok & Inventaris (${lowStockCount})`, icon: Boxes },
+    { id: 'supplier', label: 'Supplier & Faktur', icon: Truck },
+    { id: 'keuangan', label: 'Ringkasan Keuangan', icon: LineChart },
+    { id: 'master_harga', label: 'Master Harga & Grosir', icon: Tag },
   ];
 
   return (
@@ -43,7 +44,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
       {/* Backdrop */}
       {isOpen && (
         <div
-          className="fixed inset-0 z-40 bg-black/50 backdrop-blur-xs md:hidden"
+          className="fixed inset-0 z-40 bg-black/50 backdrop-blur-xs"
           onClick={onClose}
         />
       )}
@@ -83,6 +84,18 @@ export const Sidebar: React.FC<SidebarProps> = ({
               {item.label}
             </button>
           ))}
+        </div>
+
+        {/* Pengaturan & Informasi Toko Section */}
+        <div className="absolute bottom-0 left-0 right-0 p-3 border-t border-gray-100 bg-gray-50/70 space-y-2">
+          <div className="flex items-center gap-2 px-2 text-[11px] font-bold text-gray-500 uppercase tracking-wider">
+            <Settings className="w-3.5 h-3.5" />
+            <span>Pengaturan Toko</span>
+          </div>
+          <div className="text-[11px] text-gray-600 px-2 space-y-0.5">
+            <div className="font-semibold text-gray-800">RIYAN STORE</div>
+            <div>Kp. Barani RT 011 RW 04 Sangiang</div>
+          </div>
         </div>
       </div>
     </>

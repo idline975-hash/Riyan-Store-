@@ -896,9 +896,42 @@ export default function App() {
         onManualFlush={flushOfflineQueue}
       />
 
-      {/* Top Header & Navigation Bar (Edge-to-Edge Sticky) */}
+      {/* Sidebar for PC / Laptop / Tablet */}
+      <Sidebar
+        isOpen={isSidebarOpen}
+        onClose={() => setIsSidebarOpen(false)}
+        activeTab={activeTab}
+        onSelectTab={(tab) => {
+          setActiveTab(tab);
+          if (tab === 'pos') {
+            setBarcodeModalMode('pos');
+          } else {
+            setBarcodeModalMode('inventory');
+          }
+        }}
+        lowStockCount={lowStockCount}
+        kasbonActiveCount={kasbonActiveCount}
+      />
+
+      {/* Top Header & Navigation Bar (Edge-to-Edge Sticky with Menu Sidebar Button for PC/Tablet) */}
       <div className="sticky top-0 z-30 w-full max-w-full left-0 right-0 bg-white shadow-xs">
-        <Header />
+        <div className="flex items-center px-3 sm:px-4 py-2.5 sm:py-3 max-w-7xl mx-auto justify-between">
+          <div className="flex items-center gap-3">
+            {/* Hamburger button for PC/Tablet sidebar */}
+            <button
+              type="button"
+              onClick={() => setIsSidebarOpen(true)}
+              className="p-2 rounded-xl bg-teal-50 hover:bg-teal-100 text-teal-900 transition-colors cursor-pointer flex items-center gap-1.5 text-xs font-bold"
+              title="Buka Menu Sidebar"
+            >
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 6h16M4 12h16M4 18h16" />
+              </svg>
+              <span className="hidden sm:inline">Menu</span>
+            </button>
+            <Header />
+          </div>
+        </div>
       </div>
 
       {/* Main Content View Container */}
