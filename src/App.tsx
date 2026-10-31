@@ -25,6 +25,7 @@ import {
 } from './data/initialData';
 import { CloudSyncState, getDaysUntilExpiry, formatRupiah } from './utils/cloudSync';
 import { sound } from './utils/audio';
+import { getUnitMultiplier, getUnitPrice, formatMultiUnitStock } from './utils/multiUnit';
 
 import { Header } from './components/Header';
 import { NavigationTabs } from './components/NavigationTabs';
@@ -43,6 +44,7 @@ import { StockOpnameModal } from './components/StockOpnameModal';
 import { ReceiptModal } from './components/ReceiptModal';
 import { LoginLockScreen } from './components/LoginLockScreen';
 import { Sidebar } from './components/Sidebar';
+import { BottomNavBar } from './components/BottomNavBar';
 import { PWAInstallBanner } from './components/PWAInstallBanner';
 import { OfflineSyncStatusBar } from './components/OfflineSyncStatusBar';
 import { usePWA } from './hooks/usePWA';
@@ -75,13 +77,55 @@ export default function App() {
   });
   const [currentUser, setCurrentUser] = useState<string>('Pemilik Toko (Riyan)');
 
-  // Empty data by default - ready for real store data entry
+  // SembakoAll-POS: Master Items initialized and deduplicated
   const [items, setItems] = useState<SembakoItem[]>(() => {
     try {
       const saved = localStorage.getItem(STORAGE_KEYS.ITEMS);
-      return saved ? JSON.parse(saved) : [];
+      let list: SembakoItem[] = [];
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          const seen = new Set<string>();
+          list = parsed.filter((item: any) => {
+            if (!item || !item.id) return false;
+            if (seen.has(item.id)) return false;
+            seen.add(item.id);
+            return true;
+          });
+        }
+      }
+
+      // If empty, start with INITIAL_ITEMS
+      if (list.length === 0) {
+        return INITIAL_ITEMS;
+      }
+
+      // Ensure the 4 Master Items for SembakoAll-POS exist and are up to date
+      const masterItems = INITIAL_ITEMS.filter((i) =>
+        ['Gula Pasir', 'Minyak Goreng Curah', 'Kopi Saset Kapal Api', 'Rokok Sampoerna'].includes(i.name)
+      );
+
+      for (const master of masterItems) {
+        const idx = list.findIndex(
+          (item) => item.name.toLowerCase().includes(master.name.toLowerCase()) || item.barcode === master.barcode
+        );
+        if (idx === -1) {
+          list.unshift(master);
+        } else {
+          // Sync conversion, multiUnit, and primary pricing
+          list[idx] = {
+            ...list[idx],
+            unitBase: master.unitBase,
+            unitConversion: master.unitConversion,
+            sellPrice: master.sellPrice,
+            multiUnit: master.multiUnit || list[idx].multiUnit,
+          };
+        }
+      }
+
+      return list;
     } catch {
-      return [];
+      return INITIAL_ITEMS;
     }
   });
 
@@ -294,8 +338,15 @@ export default function App() {
         showToast(`⚡ Sinkronisasi Realtime: Transaksi ${transaction?.invoiceNo} dicatat dari terminal lain.`);
       } else if (msg.type === 'ITEMS_SYNC') {
         const { items: newItems } = msg.payload as any;
-        if (newItems) {
-          setItems(newItems);
+        if (Array.isArray(newItems)) {
+          const seen = new Set<string>();
+          const deduped = newItems.filter((item: any) => {
+            if (!item || !item.id) return false;
+            if (seen.has(item.id)) return false;
+            seen.add(item.id);
+            return true;
+          });
+          setItems(deduped);
           showToast('⚡ Sinkronisasi Realtime: Data inventaris barang telah disinkronkan.');
         }
       } else if (msg.type === 'KASBON_SYNC') {
@@ -414,58 +465,96 @@ export default function App() {
   };
 
   // Cart operations
-  const handleAddToCart = (item: SembakoItem, qtyToAdd = 1) => {
+  const handleAddToCart = (item: SembakoItem, qtyToAdd = 1, selectedUnit?: string) => {
+    const unitName = selectedUnit || item.unitBase;
     setCart((prev) => {
-      const existingIndex = prev.findIndex((c) => c.item.id === item.id);
+      const existingIndex = prev.findIndex((c) => c.item.id === item.id && (c.selectedUnit || c.item.unitBase) === unitName);
       if (existingIndex > -1) {
         const current = prev[existingIndex];
-        const newQty = current.quantity + qtyToAdd;
+        const newQty = Number((current.quantity + qtyToAdd).toFixed(3));
 
-        // Auto-apply wholesale if qty reaches threshold
         let newPriceType = current.priceType;
-        if (item.minWholesaleQty > 1 && newQty >= item.minWholesaleQty) {
+        if (item.minWholesaleQty > 1 && newQty >= item.minWholesaleQty && !selectedUnit) {
           newPriceType = 'wholesale';
         }
 
-        const unitPrice = newPriceType === 'wholesale' ? item.wholesalePrice : item.sellPrice;
+        const unitPrice = getUnitPrice(unitName, item, newPriceType);
+        const multiplier = getUnitMultiplier(unitName, item);
+        const baseQty = newQty * multiplier;
+
         const updated = [...prev];
         updated[existingIndex] = {
           ...current,
           quantity: newQty,
+          selectedUnit: unitName,
+          baseQtyDeducted: baseQty,
           priceType: newPriceType,
-          subtotal: newQty * unitPrice - current.discount,
+          subtotal: Math.round(newQty * unitPrice - current.discount),
         };
         return updated;
       } else {
-        const priceType = qtyToAdd >= item.minWholesaleQty && item.minWholesaleQty > 1 ? 'wholesale' : 'retail';
-        const unitPrice = priceType === 'wholesale' ? item.wholesalePrice : item.sellPrice;
+        const priceType = qtyToAdd >= item.minWholesaleQty && item.minWholesaleQty > 1 && !selectedUnit ? 'wholesale' : 'retail';
+        const unitPrice = getUnitPrice(unitName, item, priceType);
+        const multiplier = getUnitMultiplier(unitName, item);
+        const cleanQty = Number(qtyToAdd.toFixed(3));
+        const baseQty = cleanQty * multiplier;
+
         return [
           ...prev,
           {
             item,
-            quantity: qtyToAdd,
+            quantity: cleanQty,
+            selectedUnit: unitName,
+            baseQtyDeducted: baseQty,
             priceType,
             discount: 0,
-            subtotal: qtyToAdd * unitPrice,
+            subtotal: Math.round(cleanQty * unitPrice),
           },
         ];
       }
     });
   };
 
-  const handleUpdateCartQty = (itemId: string, newQty: number) => {
+  const handleUpdateCartQty = (itemId: string, newQty: number, selectedUnit?: string) => {
     if (newQty <= 0) {
       handleRemoveFromCart(itemId);
       return;
     }
+    const cleanQty = Number(newQty.toFixed(3));
     setCart((prev) =>
       prev.map((c) => {
         if (c.item.id === itemId) {
-          const unitPrice = c.priceType === 'wholesale' ? c.item.wholesalePrice : c.item.sellPrice;
+          const unit = selectedUnit || c.selectedUnit || c.item.unitBase;
+          const unitPrice = getUnitPrice(unit, c.item, c.priceType);
+          const multiplier = getUnitMultiplier(unit, c.item);
+          const baseQty = cleanQty * multiplier;
+
           return {
             ...c,
-            quantity: newQty,
-            subtotal: newQty * unitPrice - c.discount,
+            quantity: cleanQty,
+            selectedUnit: unit,
+            baseQtyDeducted: baseQty,
+            subtotal: Math.round(cleanQty * unitPrice - c.discount),
+          };
+        }
+        return c;
+      })
+    );
+  };
+
+  const handleUpdateCartUnit = (itemId: string, newUnit: string) => {
+    setCart((prev) =>
+      prev.map((c) => {
+        if (c.item.id === itemId) {
+          const unitPrice = getUnitPrice(newUnit, c.item, c.priceType);
+          const multiplier = getUnitMultiplier(newUnit, c.item);
+          const baseQty = c.quantity * multiplier;
+
+          return {
+            ...c,
+            selectedUnit: newUnit,
+            baseQtyDeducted: baseQty,
+            subtotal: Math.round(c.quantity * unitPrice - c.discount),
           };
         }
         return c;
@@ -478,11 +567,12 @@ export default function App() {
       prev.map((c) => {
         if (c.item.id === itemId) {
           const nextType = c.priceType === 'retail' ? 'wholesale' : 'retail';
-          const unitPrice = nextType === 'wholesale' ? c.item.wholesalePrice : c.item.sellPrice;
+          const unit = c.selectedUnit || c.item.unitBase;
+          const unitPrice = getUnitPrice(unit, c.item, nextType);
           return {
             ...c,
             priceType: nextType,
-            subtotal: c.quantity * unitPrice - c.discount,
+            subtotal: Math.round(c.quantity * unitPrice - c.discount),
           };
         }
         return c;
@@ -490,8 +580,15 @@ export default function App() {
     );
   };
 
-  const handleRemoveFromCart = (itemId: string) => {
-    setCart((prev) => prev.filter((c) => c.item.id !== itemId));
+  const handleRemoveFromCart = (itemId: string, selectedUnit?: string) => {
+    setCart((prev) =>
+      prev.filter((c) => {
+        if (selectedUnit) {
+          return !(c.item.id === itemId && (c.selectedUnit || c.item.unitBase) === selectedUnit);
+        }
+        return c.item.id !== itemId;
+      })
+    );
   };
 
   const handleClearCart = () => {
@@ -504,11 +601,12 @@ export default function App() {
     let nextItems: SembakoItem[] = [];
     setItems((prevItems) => {
       const updated = prevItems.map((item) => {
-        const cartLine = transaction.items.find((line) => line.itemId === item.id);
-        if (cartLine) {
+        const cartLines = transaction.items.filter((line) => line.itemId === item.id);
+        if (cartLines.length > 0) {
+          const totalDeduction = cartLines.reduce((acc, line) => acc + (line.baseQtyDeducted ?? line.qty), 0);
           return {
             ...item,
-            stock: Math.max(0, item.stock - cartLine.qty),
+            stock: Math.max(0, Number((item.stock - totalDeduction).toFixed(3))),
             updatedAt: new Date().toISOString(),
           };
         }
@@ -551,7 +649,8 @@ export default function App() {
     let nextItems: SembakoItem[] = [];
     if (isNew) {
       setItems((prev) => {
-        nextItems = [itemData, ...prev];
+        const filtered = prev.filter((i) => i.id !== itemData.id);
+        nextItems = [itemData, ...filtered];
         return nextItems;
       });
       showToast(`✓ Barang baru "${itemData.name}" berhasil ditambahkan.`);
@@ -799,67 +898,7 @@ export default function App() {
 
       {/* Top Header & Navigation Bar (Edge-to-Edge Sticky) */}
       <div className="sticky top-0 z-30 w-full max-w-full left-0 right-0 bg-white shadow-xs">
-        <Header
-          onOpenSidebar={() => setIsSidebarOpen(true)}
-          cashierSessionOpen={cashierSessionOpen}
-          onToggleCashierSession={() => {
-            setCashierSessionOpen((prev) => !prev);
-            sound.playItemAdded();
-            showToast(`Sesi kasir telah ${!cashierSessionOpen ? 'dibuka' : 'ditutup'}.`);
-          }}
-          cloudSyncState={cloudSyncState}
-          onManualSync={handleManualSync}
-          onClearAllData={handleClearAllData}
-          onLoadSampleData={handleLoadSampleData}
-          itemCount={items.length}
-          onLogout={handleLogout}
-          isDesktopMode={isDesktopMode}
-          onToggleDesktopMode={() => {
-            setIsDesktopMode((prev) => {
-              const next = !prev;
-              try {
-                localStorage.setItem('riyan_store_desktop_mode_v1', String(next));
-              } catch {}
-              showToast(next ? 'Mode Desktop Diaktifkan (Workstation POS)' : 'Mode Fleksibel Diaktifkan');
-              return next;
-            });
-          }}
-          zoomScale={zoomScale}
-          onSetZoomScale={(scale) => {
-            setZoomScale(scale);
-            try {
-              localStorage.setItem('riyan_store_zoom_scale_v1', String(scale));
-            } catch {}
-            showToast(`Skala tampilan disetel ke ${Math.round(scale * 100)}% (Diperkecil)`);
-          }}
-          isOnline={pwa.isOnline}
-          isPWAInstallable={pwa.isInstallable}
-          isPWAInstalled={pwa.isInstalled}
-          onPromptPWAInstall={pwa.promptInstall}
-        />
-        <Sidebar
-          isOpen={isSidebarOpen}
-          onClose={() => setIsSidebarOpen(false)}
-          activeTab={activeTab}
-          onSelectTab={setActiveTab}
-          lowStockCount={items.filter((i) => i.stock <= i.minStock).length}
-          kasbonActiveCount={kasbonList.filter((k) => k.status === 'belum_lunas').length}
-        />
-
-        <NavigationTabs
-          activeTab={activeTab}
-          onSelectTab={(tab) => {
-            setActiveTab(tab);
-            if (tab === 'pos') {
-              setBarcodeModalMode('pos');
-            } else {
-              setBarcodeModalMode('inventory');
-            }
-          }}
-          lowStockCount={lowStockCount}
-          kasbonActiveCount={kasbonActiveCount}
-          expiringCount={expiringCount}
-        />
+        <Header />
       </div>
 
       {/* Main Content View Container */}
@@ -1031,7 +1070,24 @@ export default function App() {
         </button>
       </div>
 
-
+      {/* Mobile Custom Floating Bottom Navigation Bar (Active on HP / Mobile Screens md:hidden) */}
+      <BottomNavBar
+        activeTab={activeTab}
+        onSelectTab={(tab) => {
+          setActiveTab(tab);
+          if (tab === 'pos') {
+            setBarcodeModalMode('pos');
+          } else {
+            setBarcodeModalMode('inventory');
+          }
+        }}
+        lowStockCount={items.filter((i) => i.stock <= i.minStock).length}
+        kasbonActiveCount={kasbonList.filter((k) => k.status === 'belum_lunas').length}
+        onOpenBarcodeScanModal={() => {
+          setBarcodeModalMode(activeTab === 'pos' ? 'pos' : 'inventory');
+          setBarcodeModalOpen(true);
+        }}
+      />
       {/* Barcode Scanner Modal (Camera + Laser Gun + Simulated Sembako Barcodes) */}
       <BarcodeScannerModal
         isOpen={barcodeModalOpen}

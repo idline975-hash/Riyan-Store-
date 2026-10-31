@@ -4,21 +4,31 @@ export interface SembakoItem {
   name: string;
   category: string;
   unitBase: string; // Pcs, Kg, Liter, Bungkus, Botol
-  unitConversion: string; // contoh: 1 Dus = 40 Bks, 1 Karung = 25 Kg
-  stock: number;
+  unitConversion: string; // contoh: 1 Dus = 4 Renceng = 40 Pcs
+  stock: number; // total stock in base unit (Pcs / Kg)
   minStock: number;
   buyPrice: number; // HPP
-  sellPrice: number; // Eceran
+  sellPrice: number; // Eceran per base unit
   wholesalePrice: number; // Grosir
   minWholesaleQty: number;
   expiryDate: string; // YYYY-MM-DD
   supplier: string;
   updatedAt: string;
+  multiUnit?: {
+    rencengQty?: number; // e.g. 10 Pcs
+    dusQty?: number; // e.g. 40 Pcs (Kopi) or 400 Bungkus (Rokok)
+    rencengPrice?: number; // e.g. Rp 20.000
+    dusPrice?: number; // e.g. Rp 80.000 or Rp 12.000.000
+    slopQty?: number; // e.g. 10 Bungkus (Rokok)
+    slopPrice?: number; // e.g. Rp 300.000
+  };
 }
 
 export interface CartItem {
   item: SembakoItem;
   quantity: number;
+  selectedUnit?: string; // 'Pcs' | 'Renceng' | 'Dus' | etc.
+  baseQtyDeducted?: number; // total base unit deducted (e.g. 10 Pcs for 1 Renceng)
   priceType: 'retail' | 'wholesale';
   discount: number; // in Rupiah
   subtotal: number;
@@ -36,6 +46,9 @@ export interface SaleTransaction {
     unit: string;
     price: number;
     subtotal: number;
+    baseQtyDeducted?: number;
+    remainingStock?: number;
+    formattedRemainingStock?: string;
   }[];
   totalAmount: number;
   discountAmount: number;

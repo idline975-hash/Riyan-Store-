@@ -80,13 +80,13 @@ export const MasterPriceView: React.FC<MasterPriceViewProps> = ({
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100">
-              {filtered.map((item) => {
+              {filtered.map((item, idx) => {
                 const isEditing = editingItemId === item.id;
                 const marginRp = item.sellPrice - item.buyPrice;
                 const marginPercent = item.buyPrice > 0 ? ((marginRp / item.buyPrice) * 100).toFixed(1) : '0';
 
                 return (
-                  <tr key={item.id} className="hover:bg-gray-50/50">
+                  <tr key={`${item.id}-${idx}`} className="hover:bg-gray-50/50">
                     <td className="py-3 px-4">
                       <div className="font-bold text-gray-900">{item.name}</div>
                       <div className="text-[11px] text-gray-500 font-mono">
@@ -196,13 +196,13 @@ export const MasterPriceView: React.FC<MasterPriceViewProps> = ({
               Belum ada data barang.
             </div>
           ) : (
-            filtered.map((item) => {
+            filtered.map((item, idx) => {
               const isEditing = editingItemId === item.id;
               const marginRp = item.sellPrice - item.buyPrice;
               const marginPercent = item.buyPrice > 0 ? ((marginRp / item.buyPrice) * 100).toFixed(1) : '0';
 
               return (
-                <div key={item.id} className="p-3.5 space-y-3">
+                <div key={`${item.id}-${idx}`} className="p-3.5 space-y-3">
                   <div>
                     <h4 className="font-bold text-gray-900 text-sm">{item.name}</h4>
                     <div className="text-[11px] text-gray-500 font-mono mt-0.5">

@@ -107,7 +107,7 @@ export const AddOrEditItemModal: React.FC<AddOrEditItemModalProps> = ({
     }
 
     const itemData: SembakoItem = {
-      id: initialItem ? initialItem.id : `item-${Date.now()}`,
+      id: initialItem ? initialItem.id : `item-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
       barcode: barcode.trim() || `899${Date.now().toString().slice(-10)}`,
       name: name.trim(),
       category,

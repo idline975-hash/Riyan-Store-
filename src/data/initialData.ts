@@ -3,18 +3,18 @@ import { SembakoItem, KasbonRecord, SupplierOrder, StockOpnameLog, DamagedItemLo
 export const INITIAL_ITEMS: SembakoItem[] = [
   {
     id: 'item-1',
-    barcode: '8992388110011',
-    name: 'Minyak Goreng Filma Pouch 2 Liter',
+    barcode: '8992388110022',
+    name: 'Minyak Goreng Curah',
     category: 'Minyak & Mentega',
-    unitBase: 'Pcs',
-    unitConversion: '1 Dus = 6 Pouch (2L)',
-    stock: 4,
-    minStock: 10, // low stock!
-    buyPrice: 34500,
-    sellPrice: 38500,
-    wholesalePrice: 37000,
-    minWholesaleQty: 6,
-    expiryDate: '2026-10-08', // H-19 (Kadaluwarsa H-30!)
+    unitBase: 'Liter',
+    unitConversion: '1 Jerigen = 16 Liter',
+    stock: 500,
+    minStock: 25,
+    buyPrice: 13500,
+    sellPrice: 15000,
+    wholesalePrice: 14500,
+    minWholesaleQty: 16,
+    expiryDate: '2027-10-08',
     supplier: 'CV Berkah Distribusi Pangan',
     updatedAt: '2026-09-19T08:30:00Z',
   },
@@ -55,15 +55,15 @@ export const INITIAL_ITEMS: SembakoItem[] = [
   {
     id: 'item-4',
     barcode: '8991002101344',
-    name: 'Gula Pasir Gulaku Kuning Premium 1 Kg',
+    name: 'Gula Pasir',
     category: 'Gula, Garam & Bumbu',
-    unitBase: 'Pcs',
-    unitConversion: '1 Karton = 20 Pcs (1Kg)',
-    stock: 8,
-    minStock: 20, // low stock!
-    buyPrice: 16200,
-    sellPrice: 18500,
-    wholesalePrice: 17500,
+    unitBase: 'Kg',
+    unitConversion: '1 Karung = 50 Kg',
+    stock: 1000,
+    minStock: 20,
+    buyPrice: 14000,
+    sellPrice: 16000,
+    wholesalePrice: 15500,
     minWholesaleQty: 10,
     expiryDate: '2027-06-30',
     supplier: 'CV Berkah Distribusi Pangan',
@@ -106,19 +106,25 @@ export const INITIAL_ITEMS: SembakoItem[] = [
   {
     id: 'item-7',
     barcode: '8991112223334',
-    name: 'Kopi Kapal Api Spesial Mix 24g (Renceng)',
+    name: 'Kopi Saset Kapal Api',
     category: 'Minuman & Teh/Kopi',
-    unitBase: 'Renceng',
-    unitConversion: '1 Renceng = 10 Sachet',
-    stock: 3,
-    minStock: 10, // low stock!
-    buyPrice: 12500,
-    sellPrice: 15000,
-    wholesalePrice: 14000,
-    minWholesaleQty: 5,
-    expiryDate: '2026-10-15', // H-26 (Kadaluwarsa H-30!)
+    unitBase: 'Pcs',
+    unitConversion: '1 Dus = 4 Renceng = 40 Pcs',
+    stock: 400, // 10 Dus (40 Pcs/Dus)
+    minStock: 40,
+    buyPrice: 1500,
+    sellPrice: 2000,
+    wholesalePrice: 1800,
+    minWholesaleQty: 10,
+    expiryDate: '2026-10-15',
     supplier: 'PT Santos Jaya Abadi Distributor',
     updatedAt: '2026-09-19T08:00:00Z',
+    multiUnit: {
+      rencengQty: 10,
+      dusQty: 40,
+      rencengPrice: 20000, // 10 Pcs x 2.000
+      dusPrice: 80000, // 40 Pcs x 2.000
+    },
   },
   {
     id: 'item-8',
@@ -170,6 +176,29 @@ export const INITIAL_ITEMS: SembakoItem[] = [
     expiryDate: '2027-04-25',
     supplier: 'PT Salim Ivomas Pratama',
     updatedAt: '2026-09-19T09:30:00Z',
+  },
+  {
+    id: 'item-11',
+    barcode: '8998989100111',
+    name: 'Rokok Sampoerna',
+    category: 'Rokok & Tembakau',
+    unitBase: 'Bungkus',
+    unitConversion: '1 Slop = 10 Bungkus, 1 Dus = 400 Bungkus',
+    stock: 400, // 1 Dus = 40 Slop = 400 Bungkus
+    minStock: 20,
+    buyPrice: 27000,
+    sellPrice: 30000,
+    wholesalePrice: 29000,
+    minWholesaleQty: 10,
+    expiryDate: '2027-12-31',
+    supplier: 'PT HM Sampoerna Tbk Distributor',
+    updatedAt: '2026-09-19T10:00:00Z',
+    multiUnit: {
+      slopQty: 10,
+      dusQty: 400,
+      slopPrice: 300000, // 10 Bungkus x 30.000
+      dusPrice: 12000000, // 400 Bungkus x 30.000
+    },
   }
 ];
 
@@ -537,5 +566,6 @@ export const CATEGORIES = [
   'Telur & Susu',
   'Mie & Pasta',
   'Minuman & Teh/Kopi',
+  'Rokok & Tembakau',
   'Sabun & Kebutuhan Rumah'
 ];

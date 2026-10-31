@@ -30,9 +30,9 @@ export const Sidebar: React.FC<SidebarProps> = ({
 }) => {
   const menuItems: { id: MainTabType; label: string; icon: any }[] = [
     { id: 'pos', label: 'Kasir (POS)', icon: ShoppingBag },
-    { id: 'history', label: 'Riwayat Transaksi', icon: Clock },
+    { id: 'riwayat', label: 'Riwayat Transaksi', icon: Clock },
     { id: 'kasbon', label: `Kasbon (${kasbonActiveCount})`, icon: CreditCard },
-    { id: 'inventory', label: `Stok (${lowStockCount})`, icon: Boxes },
+    { id: 'inventaris', label: `Stok (${lowStockCount})`, icon: Boxes },
     { id: 'supplier', label: 'Supplier', icon: Truck },
     { id: 'keuangan', label: 'Keuangan', icon: LineChart },
     { id: 'master_harga', label: 'Harga', icon: Tag },

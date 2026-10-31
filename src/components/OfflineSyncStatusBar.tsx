@@ -146,7 +146,7 @@ export const OfflineSyncStatusBar: React.FC<OfflineSyncStatusBarProps> = ({
                 </div>
               ) : (
                 offlineQueue.map((item, idx) => (
-                  <div key={item.id} className="p-2.5 bg-slate-50 rounded-xl border border-slate-200/70 text-xs">
+                  <div key={`${item.id}-${idx}`} className="p-2.5 bg-slate-50 rounded-xl border border-slate-200/70 text-xs">
                     <div className="flex items-center justify-between">
                       <span className="font-bold text-slate-800 flex items-center gap-1.5">
                         <span className="w-4 h-4 rounded-full bg-amber-500 text-white inline-flex items-center justify-center text-[10px]">

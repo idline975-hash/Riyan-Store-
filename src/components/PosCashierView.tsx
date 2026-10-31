@@ -24,14 +24,17 @@ import { SembakoItem, CartItem, SaleTransaction, KasbonRecord } from '../types';
 import { formatRupiah } from '../utils/cloudSync';
 import { sound } from '../utils/audio';
 import { CATEGORIES, PRESET_BARCODE_CATALOG } from '../data/initialData';
+import { formatMultiUnitStock, getUnitMultiplier, getUnitPrice } from '../utils/multiUnit';
+import { parseSmartCustomerInput } from '../utils/smartTransactionParser';
 
 interface PosCashierViewProps {
   items: SembakoItem[];
   cart: CartItem[];
-  onAddToCart: (item: SembakoItem, qty?: number) => void;
-  onUpdateCartQty: (itemId: string, newQty: number) => void;
+  onAddToCart: (item: SembakoItem, qty?: number, selectedUnit?: string) => void;
+  onUpdateCartQty: (itemId: string, newQty: number, selectedUnit?: string) => void;
+  onUpdateCartUnit?: (itemId: string, newUnit: string) => void;
   onToggleCartPriceType: (itemId: string) => void;
-  onRemoveFromCart: (itemId: string) => void;
+  onRemoveFromCart: (itemId: string, selectedUnit?: string) => void;
   onClearCart: () => void;
   onCompleteTransaction: (transaction: SaleTransaction, newKasbon?: KasbonRecord) => void;
   onOpenBarcodeScanModal: () => void;
@@ -44,6 +47,7 @@ export const PosCashierView: React.FC<PosCashierViewProps> = ({
   cart,
   onAddToCart,
   onUpdateCartQty,
+  onUpdateCartUnit,
   onToggleCartPriceType,
   onRemoveFromCart,
   onClearCart,
@@ -90,21 +94,21 @@ export const PosCashierView: React.FC<PosCashierViewProps> = ({
     const code = barcodeInput.trim();
     if (!code) return;
 
-    const matched = items.find((i) => i.barcode === code || i.id === code);
-    if (matched) {
-      if (matched.stock <= 0) {
-        sound.playError();
-        alert(`Perhatian: Stok barang "${matched.name}" habis di gudang!`);
-        return;
-      }
-      onAddToCart(matched, 1);
+    const parsed = parseSmartCustomerInput(code, items);
+    if (!parsed.success) {
+      sound.playError();
+      alert(parsed.errorMessage || `Barang "${code}" tidak ditemukan dalam inventaris.`);
+      return;
+    }
+
+    if (parsed.item && parsed.quantity && parsed.unit) {
+      onAddToCart(parsed.item, parsed.quantity, parsed.unit);
       sound.playScanSuccess();
       setBarcodeInput('');
-    } else {
-      sound.playError();
-      alert(`Barang dengan barcode "${code}" tidak ditemukan dalam inventaris. Cek katalog atau scan di menu Inventaris untuk mendaftarkan barang baru.`);
     }
   };
+
+  const [showConfirmPaymentModal, setShowConfirmPaymentModal] = useState(false);
 
   const handleFinishPayment = () => {
     if (cart.length === 0) {
@@ -125,6 +129,12 @@ export const PosCashierView: React.FC<PosCashierViewProps> = ({
       return;
     }
 
+    // Open confirmation dialog first
+    setShowConfirmPaymentModal(true);
+  };
+
+  const handleExecutePayment = () => {
+    setShowConfirmPaymentModal(false);
     const now = new Date();
     const invoiceNo = `INV/${now.getFullYear()}${(now.getMonth() + 1).toString().padStart(2, '0')}${now.getDate().toString().padStart(2, '0')}/${Math.floor(1000 + Math.random() * 9000)}`;
 
@@ -132,15 +142,28 @@ export const PosCashierView: React.FC<PosCashierViewProps> = ({
       id: `TRX-${Date.now()}`,
       invoiceNo,
       date: `${now.getFullYear()}-${(now.getMonth() + 1).toString().padStart(2, '0')}-${now.getDate().toString().padStart(2, '0')} ${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}`,
-      items: cart.map((c) => ({
-        itemId: c.item.id,
-        barcode: c.item.barcode,
-        name: c.item.name,
-        qty: c.quantity,
-        unit: c.item.unitBase,
-        price: c.priceType === 'wholesale' ? c.item.wholesalePrice : c.item.sellPrice,
-        subtotal: c.subtotal,
-      })),
+      items: cart.map((c) => {
+        const itemInStore = items.find((i) => i.id === c.item.id);
+        const currentStock = itemInStore ? itemInStore.stock : c.item.stock;
+        const unitUsed = c.selectedUnit || c.item.unitBase;
+        const multiplier = getUnitMultiplier(unitUsed, c.item);
+        const baseQtyDeducted = c.baseQtyDeducted || (c.quantity * multiplier);
+        const newBaseStock = Math.max(0, Number((currentStock - baseQtyDeducted).toFixed(3)));
+        const formattedRemainingStock = formatMultiUnitStock(newBaseStock, c.item);
+
+        return {
+          itemId: c.item.id,
+          barcode: c.item.barcode,
+          name: c.item.name,
+          qty: c.quantity,
+          unit: unitUsed,
+          price: getUnitPrice(unitUsed, c.item, c.priceType),
+          subtotal: c.subtotal,
+          baseQtyDeducted,
+          remainingStock: newBaseStock,
+          formattedRemainingStock,
+        };
+      }),
       totalAmount: totalRaw,
       discountAmount,
       finalAmount: finalTotal,
@@ -227,36 +250,114 @@ export const PosCashierView: React.FC<PosCashierViewProps> = ({
                 type="text"
                 value={barcodeInput}
                 onChange={(e) => setBarcodeInput(e.target.value)}
-                placeholder="Scan barcode dengan scanner gun atau ketik kode..."
-                className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-gray-300 text-sm font-mono focus:outline-hidden focus:ring-2 focus:ring-teal-500 bg-teal-50/20"
+                placeholder="Scan barcode atau ketik pesanan (contoh: 'gula 1/4 kg', 'minyak 0.5 liter', 'kopi 1 renceng', 'rokok 1 slop')..."
+                className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-gray-300 text-xs sm:text-sm font-mono focus:outline-hidden focus:ring-2 focus:ring-teal-500 bg-teal-50/20"
               />
             </div>
             <button
               type="submit"
-              className="px-5 py-2.5 bg-teal-700 hover:bg-teal-800 text-white text-xs sm:text-sm font-bold rounded-xl transition-colors cursor-pointer"
+              className="px-4 sm:px-5 py-2.5 bg-teal-700 hover:bg-teal-800 text-white text-xs sm:text-sm font-bold rounded-xl transition-colors cursor-pointer shrink-0"
             >
               + Masuk
             </button>
           </form>
 
-          {/* Quick Barcode Simulation Buttons */}
+          {/* Quick Smart Sembako Simulation Buttons */}
           <div className="mt-2.5 pt-2.5 border-t border-gray-100 flex items-center gap-1.5 overflow-x-auto text-[11px] pb-1 scrollbar-none">
             <span className="text-gray-400 font-medium whitespace-nowrap flex items-center gap-1">
-              <Sparkles className="w-3 h-3 text-amber-500" /> Scan Cepat:
+              <Sparkles className="w-3.5 h-3.5 text-amber-500" /> Transaksi Cepat:
             </span>
-            {items.slice(0, 5).map((item) => (
-              <button
-                key={item.id}
-                type="button"
-                onClick={() => {
-                  onAddToCart(item, 1);
+            <button
+              type="button"
+              onClick={() => {
+                const g = items.find((i) => i.name.toLowerCase().includes('gula'));
+                if (g) {
+                  onAddToCart(g, 0.25, 'Kg');
                   sound.playScanSuccess();
-                }}
-                className="px-2.5 py-1 rounded-lg bg-gray-100 hover:bg-teal-50 hover:text-teal-800 text-gray-700 border border-gray-200 text-xs font-medium whitespace-nowrap transition-colors"
-              >
-                + {item.name.split(' ')[0]} {item.name.split(' ')[1] || ''}
-              </button>
-            ))}
+                }
+              }}
+              className="px-2.5 py-1 rounded-lg bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-200 text-xs font-semibold whitespace-nowrap transition-colors cursor-pointer"
+            >
+              + Gula 1/4 Kg
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                const g = items.find((i) => i.name.toLowerCase().includes('gula'));
+                if (g) {
+                  onAddToCart(g, 0.5, 'Kg');
+                  sound.playScanSuccess();
+                }
+              }}
+              className="px-2.5 py-1 rounded-lg bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-200 text-xs font-semibold whitespace-nowrap transition-colors cursor-pointer"
+            >
+              + Gula 1/2 Kg
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                const m = items.find((i) => i.name.toLowerCase().includes('minyak'));
+                if (m) {
+                  onAddToCart(m, 0.5, 'Liter');
+                  sound.playScanSuccess();
+                }
+              }}
+              className="px-2.5 py-1 rounded-lg bg-amber-50 hover:bg-amber-100 text-amber-800 border border-amber-200 text-xs font-semibold whitespace-nowrap transition-colors cursor-pointer"
+            >
+              + Minyak 0.5 L
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                const k = items.find((i) => i.name.toLowerCase().includes('kopi'));
+                if (k) {
+                  onAddToCart(k, 1, 'Renceng');
+                  sound.playScanSuccess();
+                }
+              }}
+              className="px-2.5 py-1 rounded-lg bg-teal-50 hover:bg-teal-100 text-teal-800 border border-teal-200 text-xs font-semibold whitespace-nowrap transition-colors cursor-pointer"
+            >
+              + Kopi 1 Renceng
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                const k = items.find((i) => i.name.toLowerCase().includes('kopi'));
+                if (k) {
+                  onAddToCart(k, 1, 'Dus');
+                  sound.playScanSuccess();
+                }
+              }}
+              className="px-2.5 py-1 rounded-lg bg-teal-50 hover:bg-teal-100 text-teal-800 border border-teal-200 text-xs font-semibold whitespace-nowrap transition-colors cursor-pointer"
+            >
+              + Kopi 1 Dus
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                const r = items.find((i) => i.name.toLowerCase().includes('rokok') || i.name.toLowerCase().includes('sampoerna'));
+                if (r) {
+                  onAddToCart(r, 1, 'Slop');
+                  sound.playScanSuccess();
+                }
+              }}
+              className="px-2.5 py-1 rounded-lg bg-indigo-50 hover:bg-indigo-100 text-indigo-800 border border-indigo-200 text-xs font-semibold whitespace-nowrap transition-colors cursor-pointer"
+            >
+              + Rokok 1 Slop
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                const r = items.find((i) => i.name.toLowerCase().includes('rokok') || i.name.toLowerCase().includes('sampoerna'));
+                if (r) {
+                  onAddToCart(r, 1, 'Dus');
+                  sound.playScanSuccess();
+                }
+              }}
+              className="px-2.5 py-1 rounded-lg bg-indigo-50 hover:bg-indigo-100 text-indigo-800 border border-indigo-200 text-xs font-semibold whitespace-nowrap transition-colors cursor-pointer"
+            >
+              + Rokok 1 Dus
+            </button>
           </div>
         </div>
 
@@ -297,13 +398,13 @@ export const PosCashierView: React.FC<PosCashierViewProps> = ({
             </div>
           ) : (
             <div className={`grid ${isDesktopMode ? 'grid-cols-2 sm:grid-cols-3 xl:grid-cols-4' : 'grid-cols-2 sm:grid-cols-3'} gap-2 max-h-[500px] overflow-y-auto pr-1`}>
-              {catalogList.map((item) => {
+              {catalogList.map((item, idx) => {
                 const isOutOfStock = item.stock <= 0;
                 const isLowStock = item.stock <= item.minStock;
 
                 return (
                   <div
-                    key={item.id}
+                    key={`${item.id}-${idx}`}
                     onClick={() => {
                       if (!isOutOfStock) {
                         onAddToCart(item, 1);
@@ -327,22 +428,188 @@ export const PosCashierView: React.FC<PosCashierViewProps> = ({
                       </div>
                     </div>
 
-                    <div className="mt-2.5 pt-1.5 border-t border-gray-100 flex items-center justify-between">
-                      <div>
-                        <div className="text-xs font-bold text-emerald-700">
-                          {formatRupiah(item.sellPrice)}
+                    <div className="mt-2.5 pt-1.5 border-t border-gray-100 flex flex-col gap-1.5">
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <div className="text-xs font-bold text-emerald-700">
+                            {formatRupiah(item.sellPrice)} <span className="text-[10px] font-normal text-gray-500">/{item.unitBase}</span>
+                          </div>
+                          <div className="text-[10px] text-gray-500">
+                            Stok: <span className={isLowStock ? 'font-bold text-amber-600' : 'font-medium'}>{formatMultiUnitStock(item.stock, item)}</span>
+                          </div>
                         </div>
-                        <div className="text-[10px] text-gray-500">
-                          Stok: <span className={isLowStock ? 'font-bold text-amber-600' : ''}>{item.stock} {item.unitBase}</span>
-                        </div>
+                        <button
+                          type="button"
+                          disabled={isOutOfStock}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            if (!isOutOfStock) {
+                              onAddToCart(item, 1, item.unitBase);
+                              sound.playScanSuccess();
+                            }
+                          }}
+                          className="w-6 h-6 rounded-lg bg-teal-800 text-white flex items-center justify-center hover:bg-teal-900 disabled:bg-gray-300 cursor-pointer"
+                        >
+                          <Plus className="w-3 h-3" />
+                        </button>
                       </div>
-                      <button
-                        type="button"
-                        disabled={isOutOfStock}
-                        className="w-6 h-6 rounded-lg bg-teal-800 text-white flex items-center justify-center hover:bg-teal-900 disabled:bg-gray-300 cursor-pointer"
-                      >
-                        <Plus className="w-3 h-3" />
-                      </button>
+
+                      {/* Multi-Unit Quick Add & Hitung Eceran Buttons for Rokok (Bungkus, Slop, Dus) */}
+                      {(item.unitBase === 'Bungkus' || item.multiUnit?.slopQty || item.name.toLowerCase().includes('rokok')) && !isOutOfStock && (
+                        <div className="space-y-1 pt-1 border-t border-gray-100/80" onClick={(e) => e.stopPropagation()}>
+                          <div className="flex items-center justify-between text-[10px] text-gray-500 font-semibold px-0.5">
+                            <span className="text-teal-900 font-bold">Hitung Eceran:</span>
+                            <span className="text-[9px] text-gray-400">1 Slop = 10 Bks | 1 Dus = 40 Slop</span>
+                          </div>
+                          <div className="grid grid-cols-4 gap-1">
+                            <button
+                              type="button"
+                              onClick={() => {
+                                onAddToCart(item, 1, 'Bungkus');
+                                sound.playScanSuccess();
+                              }}
+                              className="py-1 px-1 bg-gray-100 hover:bg-teal-50 text-gray-800 border border-gray-200 rounded text-[10px] font-bold text-center cursor-pointer transition-colors"
+                              title="Beli Eceran 1 Bungkus (Rp 30.000)"
+                            >
+                              1 Bks
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                onAddToCart(item, 1, 'Slop');
+                                sound.playScanSuccess();
+                              }}
+                              className="py-1 px-1 bg-teal-50 hover:bg-teal-100 text-teal-900 border border-teal-200 rounded text-[10px] font-bold text-center cursor-pointer transition-colors"
+                              title="Beli 1 Slop = 10 Bungkus (Rp 300.000)"
+                            >
+                              1 Slop
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                onAddToCart(item, 0.5, 'Dus');
+                                sound.playScanSuccess();
+                              }}
+                              className="py-1 px-1 bg-teal-50 hover:bg-teal-100 text-teal-900 border border-teal-200 rounded text-[10px] font-bold text-center cursor-pointer transition-colors"
+                              title="Beli 1/2 Dus = 20 Slop (200 Bungkus - Rp 6.000.000)"
+                            >
+                              1/2 Dus
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                onAddToCart(item, 1, 'Dus');
+                                sound.playScanSuccess();
+                              }}
+                              className="py-1 px-1 bg-teal-800 text-white rounded text-[10px] font-bold text-center hover:bg-teal-900 cursor-pointer transition-colors"
+                              title="Beli 1 Dus = 40 Slop (400 Bungkus - Rp 12.000.000)"
+                            >
+                              1 Dus
+                            </button>
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Multi-Unit Quick Add & Hitung Eceran Buttons for Kopi (Pcs, Renceng, Dus) */}
+                      {(item.unitBase === 'Pcs' || item.multiUnit?.rencengQty || item.name.toLowerCase().includes('kopi')) && !isOutOfStock && (
+                        <div className="space-y-1 pt-1 border-t border-gray-100/80" onClick={(e) => e.stopPropagation()}>
+                          <div className="flex items-center justify-between text-[10px] text-gray-500 font-semibold px-0.5">
+                            <span className="text-teal-900 font-bold">Hitung Eceran:</span>
+                            <span className="text-[9px] text-gray-400">1 Rcg = 10 Pcs | 1 Dus = 4 Rcg</span>
+                          </div>
+                          <div className="grid grid-cols-4 gap-1">
+                            <button
+                              type="button"
+                              onClick={() => {
+                                onAddToCart(item, 1, 'Pcs');
+                                sound.playScanSuccess();
+                              }}
+                              className="py-1 px-1 bg-gray-100 hover:bg-teal-50 text-gray-800 border border-gray-200 rounded text-[10px] font-bold text-center cursor-pointer transition-colors"
+                              title="Beli Eceran 1 Pcs Saset (Rp 2.000)"
+                            >
+                              1 Pcs
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                onAddToCart(item, 1, 'Renceng');
+                                sound.playScanSuccess();
+                              }}
+                              className="py-1 px-1 bg-teal-50 hover:bg-teal-100 text-teal-900 border border-teal-200 rounded text-[10px] font-bold text-center cursor-pointer transition-colors"
+                              title="Beli Eceran 1 Renceng (10 Pcs - Rp 20.000)"
+                            >
+                              1 Rcg
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                onAddToCart(item, 0.5, 'Dus');
+                                sound.playScanSuccess();
+                              }}
+                              className="py-1 px-1 bg-teal-50 hover:bg-teal-100 text-teal-900 border border-teal-200 rounded text-[10px] font-bold text-center cursor-pointer transition-colors"
+                              title="Beli Eceran 1/2 Dus = 2 Renceng (20 Pcs - Rp 40.000)"
+                            >
+                              1/2 Dus
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                onAddToCart(item, 1, 'Dus');
+                                sound.playScanSuccess();
+                              }}
+                              className="py-1 px-1 bg-teal-800 text-white rounded text-[10px] font-bold text-center hover:bg-teal-900 cursor-pointer transition-colors"
+                              title="Beli 1 Dus Penuh (4 Renceng = 40 Pcs - Rp 80.000)"
+                            >
+                              1 Dus
+                            </button>
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Quick Fraction Eceran Buttons for Weight & Volume (Gula, Minyak Curah) */}
+                      {(item.unitBase === 'Kg' || item.unitBase === 'Liter') && !isOutOfStock && (
+                        <div className="space-y-1 pt-1 border-t border-gray-100/80" onClick={(e) => e.stopPropagation()}>
+                          <div className="flex items-center justify-between text-[10px] text-gray-500 font-semibold px-0.5">
+                            <span className="text-teal-900 font-bold">Hitung Eceran:</span>
+                            <span className="text-[9px] text-gray-400">Desimal ({item.unitBase})</span>
+                          </div>
+                          <div className="grid grid-cols-3 gap-1">
+                            <button
+                              type="button"
+                              onClick={() => {
+                                onAddToCart(item, 0.25, item.unitBase);
+                                sound.playScanSuccess();
+                              }}
+                              className="py-1 px-1 bg-teal-50 hover:bg-teal-100 text-teal-900 border border-teal-200 rounded text-[10px] font-bold text-center cursor-pointer transition-colors"
+                              title={`Beli Eceran 1/4 ${item.unitBase} (0.25)`}
+                            >
+                              1/4 {item.unitBase}
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                onAddToCart(item, 0.5, item.unitBase);
+                                sound.playScanSuccess();
+                              }}
+                              className="py-1 px-1 bg-teal-50 hover:bg-teal-100 text-teal-900 border border-teal-200 rounded text-[10px] font-bold text-center cursor-pointer transition-colors"
+                              title={`Beli Eceran 1/2 ${item.unitBase} (0.5)`}
+                            >
+                              1/2 {item.unitBase}
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                onAddToCart(item, 1, item.unitBase);
+                                sound.playScanSuccess();
+                              }}
+                              className="py-1 px-1 bg-teal-800 text-white rounded text-[10px] font-bold text-center hover:bg-teal-900 cursor-pointer transition-colors"
+                              title={`Beli 1 ${item.unitBase}`}
+                            >
+                              1 {item.unitBase}
+                            </button>
+                          </div>
+                        </div>
+                      )}
                     </div>
                   </div>
                 );
@@ -387,35 +654,82 @@ export const PosCashierView: React.FC<PosCashierViewProps> = ({
                 </p>
               </div>
             ) : (
-              cart.map((cartItem) => {
+              cart.map((cartItem, idx) => {
                 const { item, quantity, priceType, subtotal } = cartItem;
-                const unitPrice = priceType === 'wholesale' ? item.wholesalePrice : item.sellPrice;
+                const selectedUnit = cartItem.selectedUnit || item.unitBase;
+                const unitPrice = getUnitPrice(selectedUnit, item, priceType);
+                const isCigarette = item.unitBase === 'Bungkus' || !!item.multiUnit?.slopQty || item.name.toLowerCase().includes('rokok');
+                const isKopi = item.unitBase === 'Pcs' || !!item.multiUnit?.rencengQty || item.name.toLowerCase().includes('kopi');
+                const isMultiUnit = isCigarette || isKopi || !!item.multiUnit;
+                const isWeightOrVolume = item.unitBase === 'Kg' || item.unitBase === 'Liter';
 
                 return (
-                  <div key={item.id} className="py-2.5 first:pt-0 last:pb-0">
+                  <div key={`${item.id}-${selectedUnit}-${idx}`} className="py-2.5 first:pt-0 last:pb-0">
                     <div className="flex items-start justify-between gap-2">
                       <div className="flex-1 min-w-0">
                         <div className="font-semibold text-gray-900 text-xs sm:text-sm truncate">
                           {item.name}
                         </div>
-                        <div className="flex items-center gap-2 mt-1">
-                          {/* Price Type Toggle: Ecer vs Grosir */}
-                          <button
-                            type="button"
-                            onClick={() => onToggleCartPriceType(item.id)}
-                            className={`text-[10px] font-bold px-2 py-0.5 rounded-md border transition-colors ${
-                              priceType === 'wholesale'
-                                ? 'bg-blue-100 text-blue-800 border-blue-300'
-                                : 'bg-gray-100 text-gray-700 border-gray-300 hover:bg-gray-200'
-                            }`}
-                            title="Klik untuk ubah harga eceran / grosir"
-                          >
-                            {priceType === 'wholesale' ? 'Harga Grosir' : 'Harga Ecer'}
-                          </button>
-                          <span className="text-xs text-gray-500">
-                            {formatRupiah(unitPrice)} / {item.unitBase}
-                          </span>
-                        </div>
+                        {isCigarette ? (
+                          <div className="flex items-center gap-1.5 mt-1 flex-wrap">
+                            <span className="text-[11px] font-semibold text-gray-500">Satuan Beli:</span>
+                            <select
+                              value={selectedUnit}
+                              onChange={(e) => {
+                                const newUnit = e.target.value;
+                                if (onUpdateCartUnit) {
+                                  onUpdateCartUnit(item.id, newUnit);
+                                } else {
+                                  onUpdateCartQty(item.id, quantity, newUnit);
+                                }
+                              }}
+                              className="text-xs font-bold text-teal-900 bg-teal-50 border border-teal-300 rounded px-1.5 py-0.5 cursor-pointer"
+                            >
+                              <option value="Bungkus">Bungkus ({formatRupiah(getUnitPrice('Bungkus', item, priceType))})</option>
+                              <option value="Slop">Slop [10 Bks] ({formatRupiah(getUnitPrice('Slop', item, priceType))})</option>
+                              <option value="Dus">Dus [400 Bks] ({formatRupiah(getUnitPrice('Dus', item, priceType))})</option>
+                            </select>
+                          </div>
+                        ) : isKopi ? (
+                          <div className="flex items-center gap-1.5 mt-1 flex-wrap">
+                            <span className="text-[11px] font-semibold text-gray-500">Satuan Beli:</span>
+                            <select
+                              value={selectedUnit}
+                              onChange={(e) => {
+                                const newUnit = e.target.value;
+                                if (onUpdateCartUnit) {
+                                  onUpdateCartUnit(item.id, newUnit);
+                                } else {
+                                  onUpdateCartQty(item.id, quantity, newUnit);
+                                }
+                              }}
+                              className="text-xs font-bold text-teal-900 bg-teal-50 border border-teal-300 rounded px-1.5 py-0.5 cursor-pointer"
+                            >
+                              <option value="Pcs">Pcs ({formatRupiah(getUnitPrice('Pcs', item, priceType))})</option>
+                              <option value="Renceng">Renceng [10 Pcs] ({formatRupiah(getUnitPrice('Renceng', item, priceType))})</option>
+                              <option value="Dus">Dus [40 Pcs] ({formatRupiah(getUnitPrice('Dus', item, priceType))})</option>
+                            </select>
+                          </div>
+                        ) : (
+                          <div className="flex items-center gap-2 mt-1">
+                            {/* Price Type Toggle: Ecer vs Grosir */}
+                            <button
+                              type="button"
+                              onClick={() => onToggleCartPriceType(item.id)}
+                              className={`text-[10px] font-bold px-2 py-0.5 rounded-md border transition-colors ${
+                                priceType === 'wholesale'
+                                  ? 'bg-blue-100 text-blue-800 border-blue-300'
+                                  : 'bg-gray-100 text-gray-700 border-gray-300 hover:bg-gray-200'
+                              }`}
+                              title="Klik untuk ubah harga eceran / grosir"
+                            >
+                              {priceType === 'wholesale' ? 'Harga Grosir' : 'Harga Ecer'}
+                            </button>
+                            <span className="text-xs text-gray-500">
+                              {formatRupiah(unitPrice)} / {selectedUnit}
+                            </span>
+                          </div>
+                        )}
                       </div>
 
                       <div className="text-right">
@@ -426,41 +740,447 @@ export const PosCashierView: React.FC<PosCashierViewProps> = ({
                     </div>
 
                     {/* Qty Controls */}
-                    <div className="flex items-center justify-between mt-2">
-                      <div className="flex items-center gap-1 bg-gray-100 rounded-lg p-0.5 border border-gray-200">
+                    <div className="flex flex-col gap-1.5 mt-2 pt-1 border-t border-gray-100">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-1.5">
+                          <div className="flex items-center gap-1 bg-gray-100 rounded-lg p-0.5 border border-gray-200">
+                            <button
+                              type="button"
+                              onClick={() => {
+                                const isDus = selectedUnit === 'Dus';
+                                const step = isWeightOrVolume || isDus ? 0.25 : 1;
+                                onUpdateCartQty(item.id, Math.max(0.01, Number((quantity - step).toFixed(3))), selectedUnit);
+                              }}
+                              className="w-6 h-6 rounded-md bg-white text-gray-700 flex items-center justify-center hover:bg-gray-200 shadow-2xs font-bold cursor-pointer"
+                            >
+                              <Minus className="w-3 h-3" />
+                            </button>
+                            <input
+                              type="number"
+                              step="0.05"
+                              min="0.01"
+                              max={item.stock}
+                              value={quantity}
+                              onChange={(e) => {
+                                const val = parseFloat(e.target.value);
+                                if (!isNaN(val) && val > 0) {
+                                  const multiplier = getUnitMultiplier(selectedUnit, item);
+                                  const baseQty = val * multiplier;
+                                  if (baseQty > item.stock) {
+                                    sound.playError();
+                                    alert(`Stok hanya tersisa ${formatMultiUnitStock(item.stock, item)}`);
+                                    return;
+                                  }
+                                  onUpdateCartQty(item.id, val, selectedUnit);
+                                }
+                              }}
+                              className="w-14 text-center text-xs font-bold text-gray-900 bg-white border border-gray-300 rounded-md py-0.5 focus:ring-2 focus:ring-teal-500"
+                            />
+                            <button
+                              type="button"
+                              onClick={() => {
+                                const isDus = selectedUnit === 'Dus';
+                                const step = isWeightOrVolume || isDus ? 0.25 : 1;
+                                const multiplier = getUnitMultiplier(selectedUnit, item);
+                                const baseQty = (quantity + step) * multiplier;
+                                if (baseQty > item.stock) {
+                                  sound.playError();
+                                  alert(`Stok hanya tersisa ${formatMultiUnitStock(item.stock, item)}`);
+                                  return;
+                                }
+                                onUpdateCartQty(item.id, Number((quantity + step).toFixed(3)), selectedUnit);
+                              }}
+                              className="w-6 h-6 rounded-md bg-white text-gray-700 flex items-center justify-center hover:bg-gray-200 shadow-2xs font-bold cursor-pointer"
+                            >
+                              <Plus className="w-3 h-3" />
+                            </button>
+                          </div>
+                          <div className="flex items-center gap-1">
+                            <span className="text-[11px] font-semibold text-gray-700">{selectedUnit}</span>
+                            {/* Rokok annotations */}
+                            {isCigarette && selectedUnit === 'Dus' && quantity === 0.25 && (
+                              <span className="text-[10px] text-teal-800 font-bold bg-teal-50 px-1 py-0.2 rounded border border-teal-200">
+                                10 Slop (100 Bks)
+                              </span>
+                            )}
+                            {isCigarette && selectedUnit === 'Dus' && quantity === 0.5 && (
+                              <span className="text-[10px] text-teal-800 font-bold bg-teal-50 px-1 py-0.2 rounded border border-teal-200">
+                                20 Slop (200 Bks)
+                              </span>
+                            )}
+                            {isCigarette && selectedUnit === 'Dus' && quantity === 0.75 && (
+                              <span className="text-[10px] text-teal-800 font-bold bg-teal-50 px-1 py-0.2 rounded border border-teal-200">
+                                30 Slop (300 Bks)
+                              </span>
+                            )}
+                            {isCigarette && selectedUnit === 'Dus' && quantity === 1 && (
+                              <span className="text-[10px] text-teal-800 font-bold bg-teal-50 px-1 py-0.2 rounded border border-teal-200">
+                                40 Slop (400 Bks)
+                              </span>
+                            )}
+                            {isCigarette && selectedUnit === 'Slop' && quantity === 0.5 && (
+                              <span className="text-[10px] text-teal-800 font-bold bg-teal-50 px-1 py-0.2 rounded border border-teal-200">
+                                5 Bungkus
+                              </span>
+                            )}
+                            {/* Kopi annotations */}
+                            {isKopi && selectedUnit === 'Dus' && quantity === 0.25 && (
+                              <span className="text-[10px] text-teal-800 font-bold bg-teal-50 px-1 py-0.2 rounded border border-teal-200">
+                                1 Renceng (10 Pcs)
+                              </span>
+                            )}
+                            {isKopi && selectedUnit === 'Dus' && quantity === 0.5 && (
+                              <span className="text-[10px] text-teal-800 font-bold bg-teal-50 px-1 py-0.2 rounded border border-teal-200">
+                                2 Renceng (20 Pcs)
+                              </span>
+                            )}
+                            {isKopi && selectedUnit === 'Dus' && quantity === 0.75 && (
+                              <span className="text-[10px] text-teal-800 font-bold bg-teal-50 px-1 py-0.2 rounded border border-teal-200">
+                                3 Renceng (30 Pcs)
+                              </span>
+                            )}
+                            {isKopi && selectedUnit === 'Renceng' && quantity === 0.5 && (
+                              <span className="text-[10px] text-teal-800 font-bold bg-teal-50 px-1 py-0.2 rounded border border-teal-200">
+                                5 Pcs
+                              </span>
+                            )}
+                          </div>
+                        </div>
+
                         <button
                           type="button"
-                          onClick={() => onUpdateCartQty(item.id, quantity - 1)}
-                          className="w-6 h-6 rounded-md bg-white text-gray-700 flex items-center justify-center hover:bg-gray-200 shadow-2xs"
+                          onClick={() => onRemoveFromCart(item.id, selectedUnit)}
+                          className="text-rose-500 hover:text-rose-700 p-1 text-xs font-medium flex items-center gap-1 cursor-pointer"
                         >
-                          <Minus className="w-3 h-3" />
-                        </button>
-                        <span className="w-8 text-center text-xs font-bold text-gray-800">
-                          {quantity}
-                        </span>
-                        <button
-                          type="button"
-                          onClick={() => {
-                            if (quantity + 1 > item.stock) {
-                              sound.playError();
-                              alert(`Stok hanya tersisa ${item.stock} ${item.unitBase}`);
-                              return;
-                            }
-                            onUpdateCartQty(item.id, quantity + 1);
-                          }}
-                          className="w-6 h-6 rounded-md bg-white text-gray-700 flex items-center justify-center hover:bg-gray-200 shadow-2xs"
-                        >
-                          <Plus className="w-3 h-3" />
+                          <Trash2 className="w-3.5 h-3.5" />
+                          <span className="text-[10px]">Hapus</span>
                         </button>
                       </div>
 
-                      <button
-                        type="button"
-                        onClick={() => onRemoveFromCart(item.id)}
-                        className="text-rose-500 hover:text-rose-700 p-1 text-xs"
-                      >
-                        <Trash2 className="w-3.5 h-3.5" />
-                      </button>
+                      {/* Quick Fraction Weight / Multi-Unit Eceran Pills */}
+                      {isCigarette ? (
+                        <div className="flex items-center gap-1 text-[10px] flex-wrap pt-0.5">
+                          <span className="text-gray-400 font-medium">Hitung Eceran:</span>
+                          {selectedUnit === 'Dus' ? (
+                            <>
+                              <button
+                                type="button"
+                                onClick={() => onUpdateCartQty(item.id, 0.25, 'Dus')}
+                                className={`px-1.5 py-0.5 rounded border font-semibold transition-colors cursor-pointer ${
+                                  quantity === 0.25 ? 'bg-teal-800 text-white border-teal-800' : 'bg-teal-50 text-teal-800 border-teal-200 hover:bg-teal-100'
+                                }`}
+                                title="Beli 1/4 Dus = 10 Slop (100 Bungkus - Rp 3.000.000)"
+                              >
+                                1/4 (10 Slop)
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => onUpdateCartQty(item.id, 0.5, 'Dus')}
+                                className={`px-1.5 py-0.5 rounded border font-semibold transition-colors cursor-pointer ${
+                                  quantity === 0.5 ? 'bg-teal-800 text-white border-teal-800' : 'bg-teal-50 text-teal-800 border-teal-200 hover:bg-teal-100'
+                                }`}
+                                title="Beli 1/2 Dus = 20 Slop (200 Bungkus - Rp 6.000.000)"
+                              >
+                                1/2 (20 Slop)
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => onUpdateCartQty(item.id, 0.75, 'Dus')}
+                                className={`px-1.5 py-0.5 rounded border font-semibold transition-colors cursor-pointer ${
+                                  quantity === 0.75 ? 'bg-teal-800 text-white border-teal-800' : 'bg-teal-50 text-teal-800 border-teal-200 hover:bg-teal-100'
+                                }`}
+                                title="Beli 3/4 Dus = 30 Slop (300 Bungkus - Rp 9.000.000)"
+                              >
+                                3/4 (30 Slop)
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => onUpdateCartQty(item.id, 1, 'Dus')}
+                                className={`px-1.5 py-0.5 rounded border font-semibold transition-colors cursor-pointer ${
+                                  quantity === 1 ? 'bg-teal-800 text-white border-teal-800' : 'bg-teal-50 text-teal-800 border-teal-200 hover:bg-teal-100'
+                                }`}
+                                title="Beli 1 Dus = 40 Slop (400 Bungkus - Rp 12.000.000)"
+                              >
+                                1 Dus (40 Slop)
+                              </button>
+                            </>
+                          ) : selectedUnit === 'Slop' ? (
+                            <>
+                              <button
+                                type="button"
+                                onClick={() => onUpdateCartQty(item.id, 0.5, 'Slop')}
+                                className={`px-1.5 py-0.5 rounded border font-semibold transition-colors cursor-pointer ${
+                                  quantity === 0.5 ? 'bg-teal-800 text-white border-teal-800' : 'bg-teal-50 text-teal-800 border-teal-200 hover:bg-teal-100'
+                                }`}
+                                title="Beli 1/2 Slop = 5 Bungkus (Rp 150.000)"
+                              >
+                                1/2 (5 Bks)
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => onUpdateCartQty(item.id, 1, 'Slop')}
+                                className={`px-1.5 py-0.5 rounded border font-semibold transition-colors cursor-pointer ${
+                                  quantity === 1 ? 'bg-teal-800 text-white border-teal-800' : 'bg-teal-50 text-teal-800 border-teal-200 hover:bg-teal-100'
+                                }`}
+                                title="Beli 1 Slop = 10 Bungkus (Rp 300.000)"
+                              >
+                                1 Slop (10 Bks)
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => onUpdateCartQty(item.id, 2, 'Slop')}
+                                className={`px-1.5 py-0.5 rounded border font-semibold transition-colors cursor-pointer ${
+                                  quantity === 2 ? 'bg-teal-800 text-white border-teal-800' : 'bg-teal-50 text-teal-800 border-teal-200 hover:bg-teal-100'
+                                }`}
+                                title="Beli 2 Slop (Rp 600.000)"
+                              >
+                                2 Slop
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => onUpdateCartQty(item.id, 5, 'Slop')}
+                                className={`px-1.5 py-0.5 rounded border font-semibold transition-colors cursor-pointer ${
+                                  quantity === 5 ? 'bg-teal-800 text-white border-teal-800' : 'bg-teal-50 text-teal-800 border-teal-200 hover:bg-teal-100'
+                                }`}
+                                title="Beli 5 Slop (Rp 1.500.000)"
+                              >
+                                5 Slop
+                              </button>
+                            </>
+                          ) : (
+                            <>
+                              <button
+                                type="button"
+                                onClick={() => onUpdateCartQty(item.id, 1, 'Bungkus')}
+                                className={`px-1.5 py-0.5 rounded border font-semibold transition-colors cursor-pointer ${
+                                  quantity === 1 ? 'bg-teal-800 text-white border-teal-800' : 'bg-teal-50 text-teal-800 border-teal-200 hover:bg-teal-100'
+                                }`}
+                                title="Beli 1 Bungkus (Rp 30.000)"
+                              >
+                                1 Bks
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => onUpdateCartQty(item.id, 2, 'Bungkus')}
+                                className={`px-1.5 py-0.5 rounded border font-semibold transition-colors cursor-pointer ${
+                                  quantity === 2 ? 'bg-teal-800 text-white border-teal-800' : 'bg-teal-50 text-teal-800 border-teal-200 hover:bg-teal-100'
+                                }`}
+                                title="Beli 2 Bungkus (Rp 60.000)"
+                              >
+                                2 Bks
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => onUpdateCartQty(item.id, 5, 'Bungkus')}
+                                className={`px-1.5 py-0.5 rounded border font-semibold transition-colors cursor-pointer ${
+                                  quantity === 5 ? 'bg-teal-800 text-white border-teal-800' : 'bg-teal-50 text-teal-800 border-teal-200 hover:bg-teal-100'
+                                }`}
+                                title="Beli 5 Bungkus = 1/2 Slop (Rp 150.000)"
+                              >
+                                5 Bks
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => onUpdateCartQty(item.id, 10, 'Bungkus')}
+                                className={`px-1.5 py-0.5 rounded border font-semibold transition-colors cursor-pointer ${
+                                  quantity === 10 ? 'bg-teal-800 text-white border-teal-800' : 'bg-teal-50 text-teal-800 border-teal-200 hover:bg-teal-100'
+                                }`}
+                                title="Beli 10 Bungkus = 1 Slop (Rp 300.000)"
+                              >
+                                10 Bks (1 Slop)
+                              </button>
+                            </>
+                          )}
+                        </div>
+                      ) : isKopi ? (
+                        <div className="flex items-center gap-1 text-[10px] flex-wrap pt-0.5">
+                          <span className="text-gray-400 font-medium">Hitung Eceran:</span>
+                          {selectedUnit === 'Dus' ? (
+                            <>
+                              <button
+                                type="button"
+                                onClick={() => onUpdateCartQty(item.id, 0.25, 'Dus')}
+                                className={`px-1.5 py-0.5 rounded border font-semibold transition-colors cursor-pointer ${
+                                  quantity === 0.25 ? 'bg-teal-800 text-white border-teal-800' : 'bg-teal-50 text-teal-800 border-teal-200 hover:bg-teal-100'
+                                }`}
+                                title="Beli 1/4 Dus = 1 Renceng (10 Pcs - Rp 20.000)"
+                              >
+                                1/4 (1 Renceng)
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => onUpdateCartQty(item.id, 0.5, 'Dus')}
+                                className={`px-1.5 py-0.5 rounded border font-semibold transition-colors cursor-pointer ${
+                                  quantity === 0.5 ? 'bg-teal-800 text-white border-teal-800' : 'bg-teal-50 text-teal-800 border-teal-200 hover:bg-teal-100'
+                                }`}
+                                title="Beli 1/2 Dus = 2 Renceng (20 Pcs - Rp 40.000)"
+                              >
+                                1/2 (2 Renceng)
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => onUpdateCartQty(item.id, 0.75, 'Dus')}
+                                className={`px-1.5 py-0.5 rounded border font-semibold transition-colors cursor-pointer ${
+                                  quantity === 0.75 ? 'bg-teal-800 text-white border-teal-800' : 'bg-teal-50 text-teal-800 border-teal-200 hover:bg-teal-100'
+                                }`}
+                                title="Beli 3/4 Dus = 3 Renceng (30 Pcs - Rp 60.000)"
+                              >
+                                3/4 (3 Renceng)
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => onUpdateCartQty(item.id, 1, 'Dus')}
+                                className={`px-1.5 py-0.5 rounded border font-semibold transition-colors cursor-pointer ${
+                                  quantity === 1 ? 'bg-teal-800 text-white border-teal-800' : 'bg-teal-50 text-teal-800 border-teal-200 hover:bg-teal-100'
+                                }`}
+                                title="Beli 1 Dus = 4 Renceng (40 Pcs - Rp 80.000)"
+                              >
+                                1 Dus (4 Renceng)
+                              </button>
+                            </>
+                          ) : selectedUnit === 'Renceng' ? (
+                            <>
+                              <button
+                                type="button"
+                                onClick={() => onUpdateCartQty(item.id, 0.5, 'Renceng')}
+                                className={`px-1.5 py-0.5 rounded border font-semibold transition-colors cursor-pointer ${
+                                  quantity === 0.5 ? 'bg-teal-800 text-white border-teal-800' : 'bg-teal-50 text-teal-800 border-teal-200 hover:bg-teal-100'
+                                }`}
+                                title="Beli 1/2 Renceng = 5 Pcs (Rp 10.000)"
+                              >
+                                1/2 (5 Pcs)
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => onUpdateCartQty(item.id, 1, 'Renceng')}
+                                className={`px-1.5 py-0.5 rounded border font-semibold transition-colors cursor-pointer ${
+                                  quantity === 1 ? 'bg-teal-800 text-white border-teal-800' : 'bg-teal-50 text-teal-800 border-teal-200 hover:bg-teal-100'
+                                }`}
+                                title="Beli 1 Renceng = 10 Pcs (Rp 20.000)"
+                              >
+                                1 Renceng (10 Pcs)
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => onUpdateCartQty(item.id, 2, 'Renceng')}
+                                className={`px-1.5 py-0.5 rounded border font-semibold transition-colors cursor-pointer ${
+                                  quantity === 2 ? 'bg-teal-800 text-white border-teal-800' : 'bg-teal-50 text-teal-800 border-teal-200 hover:bg-teal-100'
+                                }`}
+                                title="Beli 2 Renceng = 20 Pcs (Rp 40.000)"
+                              >
+                                2 Renceng
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => onUpdateCartQty(item.id, 4, 'Renceng')}
+                                className={`px-1.5 py-0.5 rounded border font-semibold transition-colors cursor-pointer ${
+                                  quantity === 4 ? 'bg-teal-800 text-white border-teal-800' : 'bg-teal-50 text-teal-800 border-teal-200 hover:bg-teal-100'
+                                }`}
+                                title="Beli 4 Renceng = 1 Dus (Rp 80.000)"
+                              >
+                                4 Renceng (1 Dus)
+                              </button>
+                            </>
+                          ) : (
+                            <>
+                              <button
+                                type="button"
+                                onClick={() => onUpdateCartQty(item.id, 1, 'Pcs')}
+                                className={`px-1.5 py-0.5 rounded border font-semibold transition-colors cursor-pointer ${
+                                  quantity === 1 ? 'bg-teal-800 text-white border-teal-800' : 'bg-teal-50 text-teal-800 border-teal-200 hover:bg-teal-100'
+                                }`}
+                                title="Beli 1 Pcs Saset (Rp 2.000)"
+                              >
+                                1 Pcs
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => onUpdateCartQty(item.id, 2, 'Pcs')}
+                                className={`px-1.5 py-0.5 rounded border font-semibold transition-colors cursor-pointer ${
+                                  quantity === 2 ? 'bg-teal-800 text-white border-teal-800' : 'bg-teal-50 text-teal-800 border-teal-200 hover:bg-teal-100'
+                                }`}
+                                title="Beli 2 Pcs Saset (Rp 4.000)"
+                              >
+                                2 Pcs
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => onUpdateCartQty(item.id, 5, 'Pcs')}
+                                className={`px-1.5 py-0.5 rounded border font-semibold transition-colors cursor-pointer ${
+                                  quantity === 5 ? 'bg-teal-800 text-white border-teal-800' : 'bg-teal-50 text-teal-800 border-teal-200 hover:bg-teal-100'
+                                }`}
+                                title="Beli 5 Pcs = 1/2 Renceng (Rp 10.000)"
+                              >
+                                5 Pcs (1/2 Renceng)
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => onUpdateCartQty(item.id, 10, 'Pcs')}
+                                className={`px-1.5 py-0.5 rounded border font-semibold transition-colors cursor-pointer ${
+                                  quantity === 10 ? 'bg-teal-800 text-white border-teal-800' : 'bg-teal-50 text-teal-800 border-teal-200 hover:bg-teal-100'
+                                }`}
+                                title="Beli 10 Pcs = 1 Renceng (Rp 20.000)"
+                              >
+                                10 Pcs (1 Renceng)
+                              </button>
+                            </>
+                          )}
+                        </div>
+                      ) : isWeightOrVolume && (
+                        <div className="flex items-center gap-1 text-[10px] flex-wrap pt-0.5">
+                          <span className="text-gray-400 font-medium">Hitung Eceran:</span>
+                          <button
+                            type="button"
+                            onClick={() => onUpdateCartQty(item.id, 0.25, selectedUnit)}
+                            className={`px-1.5 py-0.5 rounded border font-semibold transition-colors cursor-pointer ${
+                              quantity === 0.25 ? 'bg-teal-800 text-white border-teal-800' : 'bg-teal-50 text-teal-800 border-teal-200 hover:bg-teal-100'
+                            }`}
+                            title="Beli Eceran 1/4 (0.25)"
+                          >
+                            1/4 (0.25)
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => onUpdateCartQty(item.id, 0.5, selectedUnit)}
+                            className={`px-1.5 py-0.5 rounded border font-semibold transition-colors cursor-pointer ${
+                              quantity === 0.5 ? 'bg-teal-800 text-white border-teal-800' : 'bg-teal-50 text-teal-800 border-teal-200 hover:bg-teal-100'
+                            }`}
+                            title="Beli Eceran 1/2 (0.50)"
+                          >
+                            1/2 (0.50)
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => onUpdateCartQty(item.id, 0.75, selectedUnit)}
+                            className={`px-1.5 py-0.5 rounded border font-semibold transition-colors cursor-pointer ${
+                              quantity === 0.75 ? 'bg-teal-800 text-white border-teal-800' : 'bg-teal-50 text-teal-800 border-teal-200 hover:bg-teal-100'
+                            }`}
+                            title="Beli Eceran 3/4 (0.75)"
+                          >
+                            3/4 (0.75)
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => onUpdateCartQty(item.id, 1, selectedUnit)}
+                            className={`px-1.5 py-0.5 rounded border font-semibold transition-colors cursor-pointer ${
+                              quantity === 1 ? 'bg-teal-800 text-white border-teal-800' : 'bg-teal-50 text-teal-800 border-teal-200 hover:bg-teal-100'
+                            }`}
+                            title="Beli 1"
+                          >
+                            1.0
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => onUpdateCartQty(item.id, 2, selectedUnit)}
+                            className={`px-1.5 py-0.5 rounded border font-semibold transition-colors cursor-pointer ${
+                              quantity === 2 ? 'bg-teal-800 text-white border-teal-800' : 'bg-teal-50 text-teal-800 border-teal-200 hover:bg-teal-100'
+                            }`}
+                            title="Beli 2"
+                          >
+                            2.0
+                          </button>
+                        </div>
+                      )}
                     </div>
                   </div>
                 );
@@ -684,30 +1404,69 @@ export const PosCashierView: React.FC<PosCashierViewProps> = ({
         </div>
       )}
 
-      {/* Floating Quick Mobile Cart Bar */}
-      {cart.length > 0 && (
-        <div className="lg:hidden fixed bottom-16 left-3 right-3 z-30 flex items-center justify-between bg-teal-950/95 text-white px-4 py-2.5 rounded-2xl shadow-2xl border border-teal-700/80 backdrop-blur-md animate-in slide-in-from-bottom-2">
-          <div className="flex items-center gap-2">
-            <span className="bg-teal-700 text-white text-xs px-2.5 py-0.5 rounded-full font-bold">
-              {cart.reduce((a, b) => a + b.quantity, 0)} Item
-            </span>
-            <span className="font-bold text-sm text-teal-300 font-mono">
-              {formatRupiah(finalTotal)}
-            </span>
+      {/* Payment Confirmation Modal */}
+      {showConfirmPaymentModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-xs p-4 animate-in fade-in">
+          <div className="bg-white rounded-3xl shadow-2xl w-full max-w-sm overflow-hidden border border-gray-100 p-6 space-y-4 text-center">
+            <div className="w-14 h-14 bg-teal-100 text-teal-800 rounded-full flex items-center justify-center mx-auto shadow-inner">
+              <CheckCircle2 className="w-8 h-8 text-teal-700" />
+            </div>
+
+            <div>
+              <h3 className="text-lg font-black text-gray-900">Konfirmasi Pembayaran</h3>
+              <p className="text-xs text-gray-500 mt-1">
+                Apakah Anda yakin ingin menyelesaikan transaksi ini dan memotong stok barang secara otomatis?
+              </p>
+            </div>
+
+            <div className="bg-teal-50/80 p-3 rounded-2xl border border-teal-200/80 text-left space-y-1.5 font-mono text-xs">
+              <div className="flex justify-between text-gray-600">
+                <span>Total Item:</span>
+                <span className="font-bold text-gray-900">{cart.reduce((a, b) => a + b.quantity, 0)} item</span>
+              </div>
+              <div className="flex justify-between text-gray-600">
+                <span>Total Tagihan:</span>
+                <span className="font-bold text-teal-900 text-sm">{formatRupiah(finalTotal)}</span>
+              </div>
+              <div className="flex justify-between text-gray-600">
+                <span>Metode:</span>
+                <span className="font-bold uppercase text-teal-800">{paymentMethod}</span>
+              </div>
+              {paymentMethod === 'tunai' && (
+                <>
+                  <div className="flex justify-between text-gray-600">
+                    <span>Bayar Tunai:</span>
+                    <span className="font-bold text-gray-900">{formatRupiah(cashPaid)}</span>
+                  </div>
+                  <div className="flex justify-between text-emerald-700 font-bold">
+                    <span>Kembalian:</span>
+                    <span>{formatRupiah(changeAmount)}</span>
+                  </div>
+                </>
+              )}
+            </div>
+
+            <div className="flex gap-2.5 pt-2">
+              <button
+                type="button"
+                onClick={() => setShowConfirmPaymentModal(false)}
+                className="flex-1 py-2.5 px-4 rounded-xl bg-gray-100 hover:bg-gray-200 text-gray-700 font-bold text-xs transition-colors cursor-pointer"
+              >
+                Batal
+              </button>
+              <button
+                type="button"
+                onClick={handleExecutePayment}
+                className="flex-1 py-2.5 px-4 rounded-xl bg-teal-800 hover:bg-teal-900 text-white font-bold text-xs shadow-md transition-all cursor-pointer flex items-center justify-center gap-1.5"
+              >
+                <CheckCircle2 className="w-4 h-4" />
+                <span>Ya, Selesaikan</span>
+              </button>
+            </div>
           </div>
-          <button
-            type="button"
-            onClick={() => {
-              const el = document.getElementById('checkout-cart-panel');
-              el?.scrollIntoView({ behavior: 'smooth' });
-            }}
-            className="px-3 py-1.5 bg-emerald-500 hover:bg-emerald-600 text-slate-950 font-bold text-xs rounded-xl shadow-xs transition-colors cursor-pointer flex items-center gap-1"
-          >
-            <span>Bayar Kasir</span>
-            <span className="text-sm">→</span>
-          </button>
         </div>
       )}
+
     </div>
   );
 };

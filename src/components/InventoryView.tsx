@@ -19,6 +19,7 @@ import {
 import { SembakoItem, InventorySubTabType, StockOpnameLog, DamagedItemLog } from '../types';
 import { formatRupiah, formatDateIndo, getDaysUntilExpiry } from '../utils/cloudSync';
 import { CATEGORIES } from '../data/initialData';
+import { formatMultiUnitStock } from '../utils/multiUnit';
 
 interface InventoryViewProps {
   items: SembakoItem[];
@@ -325,13 +326,13 @@ export const InventoryView: React.FC<InventoryViewProps> = ({
                     </td>
                   </tr>
                 ) : (
-                  filteredItems.map((item) => {
+                  filteredItems.map((item, idx) => {
                     const daysLeft = getDaysUntilExpiry(item.expiryDate);
                     const isExpiring = daysLeft <= 30;
                     const isLowStock = item.stock <= item.minStock;
 
                     return (
-                      <tr key={item.id} className="hover:bg-teal-50/20 transition-colors">
+                      <tr key={`${item.id}-${idx}`} className="hover:bg-teal-50/20 transition-colors">
                         {/* BARANG SEMBAKO */}
                         <td className="py-3.5 px-4">
                           <div className="font-semibold text-gray-900">{item.name}</div>
@@ -365,7 +366,7 @@ export const InventoryView: React.FC<InventoryViewProps> = ({
 
                         {/* SISA STOK */}
                         <td className="py-3.5 px-4">
-                          <div className="flex items-center gap-2">
+                          <div className="flex flex-col">
                             <span
                               className={`text-base font-bold ${
                                 item.stock === 0
@@ -375,7 +376,10 @@ export const InventoryView: React.FC<InventoryViewProps> = ({
                                   : 'text-gray-900'
                               }`}
                             >
-                              {item.stock} {item.unitBase}
+                              {formatMultiUnitStock(item.stock, item)}
+                            </span>
+                            <span className="text-[11px] text-gray-400 font-mono">
+                              ({item.stock} {item.unitBase})
                             </span>
                           </div>
                           {isLowStock && (
@@ -479,13 +483,13 @@ export const InventoryView: React.FC<InventoryViewProps> = ({
                 )}
               </div>
             ) : (
-              filteredItems.map((item) => {
+              filteredItems.map((item, idx) => {
                 const daysLeft = getDaysUntilExpiry(item.expiryDate);
                 const isExpiring = daysLeft <= 30;
                 const isLowStock = item.stock <= item.minStock;
 
                 return (
-                  <div key={item.id} className="p-3.5 space-y-2.5 hover:bg-teal-50/20 transition-colors">
+                  <div key={`${item.id}-${idx}`} className="p-3.5 space-y-2.5 hover:bg-teal-50/20 transition-colors">
                     <div className="flex items-start justify-between gap-2">
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-1.5 flex-wrap">
@@ -507,7 +511,7 @@ export const InventoryView: React.FC<InventoryViewProps> = ({
                       {/* Stock Badge */}
                       <div className="text-right flex-shrink-0">
                         <div
-                          className={`text-base font-black ${
+                          className={`text-sm font-black ${
                             item.stock === 0
                               ? 'text-rose-600'
                               : isLowStock
@@ -515,8 +519,9 @@ export const InventoryView: React.FC<InventoryViewProps> = ({
                               : 'text-emerald-700'
                           }`}
                         >
-                          {item.stock} <span className="text-xs font-semibold text-gray-600">{item.unitBase}</span>
+                          {formatMultiUnitStock(item.stock, item)}
                         </div>
+                        <div className="text-[10px] text-gray-500 font-mono">({item.stock} {item.unitBase})</div>
                         {isLowStock && (
                           <span className="inline-flex items-center gap-0.5 text-[9px] font-bold text-amber-700 bg-amber-100 px-1.5 py-0.5 rounded-sm">
                             Min: {item.minStock}

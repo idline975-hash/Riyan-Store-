@@ -38,8 +38,8 @@ export const ReceiptModal: React.FC<ReceiptModalProps> = ({
         <div className="p-5 bg-white font-mono text-xs text-gray-800 space-y-3 receipt-paper">
           <div className="text-center border-b border-dashed border-gray-300 pb-3">
             <div className="font-bold text-base tracking-wider text-gray-900">RIYAN STORE</div>
-            <div className="text-[10px] text-gray-500">Sistem Manajemen Sembako Terintegrasi</div>
-            <div className="text-[10px] text-gray-600 font-medium">Kp. Barani RT 011 RW 04 Desa Sangiang, Pamarayan</div>
+            <div className="text-[10px] font-bold text-teal-800 tracking-wide uppercase">SembakoAll-POS Kasir Pintar</div>
+            <div className="text-[10px] text-gray-600 font-medium mt-0.5">Kp. Barani RT 011 RW 04 Desa Sangiang, Pamarayan</div>
             <div className="text-[10px] text-gray-500">Telp/WA: 0812-3456-7890</div>
           </div>
 
@@ -69,18 +69,47 @@ export const ReceiptModal: React.FC<ReceiptModalProps> = ({
           </div>
 
           {/* Items */}
-          <div className="space-y-1.5 border-b border-dashed border-gray-300 pb-2.5">
-            {transaction.items.map((item, idx) => (
-              <div key={idx} className="space-y-0.5">
-                <div className="font-bold text-gray-900">{item.name}</div>
-                <div className="flex justify-between text-gray-600 text-[11px]">
-                  <span>
-                    {item.qty} x {formatRupiah(item.price)}
-                  </span>
-                  <span className="font-bold text-gray-800">{formatRupiah(item.subtotal)}</span>
+          <div className="space-y-2 border-b border-dashed border-gray-300 pb-2.5">
+            {transaction.items.map((item, idx) => {
+              const lowerName = item.name.toLowerCase();
+              const isRokok = lowerName.includes('rokok') || lowerName.includes('sampoerna');
+              const isKopi = lowerName.includes('kopi');
+
+              let unitNote = '';
+              if (item.unit === 'Dus') {
+                if (isRokok) {
+                  if (item.qty === 0.25) unitNote = ' (10 Slop / 100 Bks)';
+                  else if (item.qty === 0.5) unitNote = ' (20 Slop / 200 Bks)';
+                  else if (item.qty === 0.75) unitNote = ' (30 Slop / 300 Bks)';
+                  else if (item.qty === 1) unitNote = ' (40 Slop / 400 Bks)';
+                } else if (isKopi) {
+                  if (item.qty === 0.25) unitNote = ' (1 Renceng / 10 Pcs)';
+                  else if (item.qty === 0.5) unitNote = ' (2 Renceng / 20 Pcs)';
+                  else if (item.qty === 0.75) unitNote = ' (3 Renceng / 30 Pcs)';
+                  else if (item.qty === 1) unitNote = ' (4 Renceng / 40 Pcs)';
+                }
+              } else if (item.unit === 'Slop') {
+                if (item.qty === 0.5) unitNote = ' (5 Bungkus)';
+                else if (item.qty === 1) unitNote = ' (10 Bungkus)';
+                else unitNote = ` (${item.qty * 10} Bungkus)`;
+              } else if (item.unit === 'Renceng') {
+                if (item.qty === 0.5) unitNote = ' (5 Pcs)';
+                else if (item.qty === 1) unitNote = ' (10 Pcs)';
+                else unitNote = ` (${item.qty * 10} Pcs)`;
+              }
+
+              return (
+                <div key={idx} className="space-y-0.5">
+                  <div className="font-bold text-gray-900">{item.name}</div>
+                  <div className="flex justify-between text-gray-600 text-[11px]">
+                    <span>
+                      {item.qty} {item.unit}{unitNote} x {formatRupiah(item.price)}/{item.unit}
+                    </span>
+                    <span className="font-bold text-gray-800">{formatRupiah(item.subtotal)}</span>
+                  </div>
                 </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
 
           {/* Totals */}
