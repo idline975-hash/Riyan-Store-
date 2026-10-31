@@ -264,7 +264,7 @@ export const PosCashierView: React.FC<PosCashierViewProps> = ({
 
           {/* Quick Smart Sembako Simulation Buttons */}
           <div className="mt-2.5 pt-2.5 border-t border-gray-100 flex items-center gap-1.5 overflow-x-auto text-[11px] pb-1 scrollbar-none">
-            <span className="text-gray-400 font-medium whitespace-nowrap flex items-center gap-1">
+            <span className="text-slate-700 font-bold whitespace-nowrap flex items-center gap-1">
               <Sparkles className="w-3.5 h-3.5 text-amber-500" /> Transaksi Cepat:
             </span>
             <button
@@ -420,10 +420,10 @@ export const PosCashierView: React.FC<PosCashierViewProps> = ({
                     }`}
                   >
                     <div>
-                      <div className="text-[10px] font-mono text-gray-400 truncate">
+                      <div className="text-[10px] font-mono text-slate-500 font-semibold truncate">
                         {item.barcode}
                       </div>
-                      <div className="font-bold text-gray-900 text-xs line-clamp-2 mt-0.5 leading-snug">
+                      <div className="font-bold text-gray-950 text-xs line-clamp-2 mt-0.5 leading-snug">
                         {item.name}
                       </div>
                     </div>
@@ -431,11 +431,11 @@ export const PosCashierView: React.FC<PosCashierViewProps> = ({
                     <div className="mt-2.5 pt-1.5 border-t border-gray-100 flex flex-col gap-1.5">
                       <div className="flex items-center justify-between">
                         <div>
-                          <div className="text-xs font-bold text-emerald-700">
-                            {formatRupiah(item.sellPrice)} <span className="text-[10px] font-normal text-gray-500">/{item.unitBase}</span>
+                          <div className="text-xs font-bold text-emerald-800">
+                            {formatRupiah(item.sellPrice)} <span className="text-[10px] font-semibold text-slate-600">/{item.unitBase}</span>
                           </div>
-                          <div className="text-[10px] text-gray-500">
-                            Stok: <span className={isLowStock ? 'font-bold text-amber-600' : 'font-medium'}>{formatMultiUnitStock(item.stock, item)}</span>
+                          <div className="text-[10px] text-slate-600 font-medium">
+                            Stok: <span className={isLowStock ? 'font-black text-amber-700' : 'font-bold text-slate-900'}>{formatMultiUnitStock(item.stock, item)}</span>
                           </div>
                         </div>
                         <button
@@ -457,9 +457,9 @@ export const PosCashierView: React.FC<PosCashierViewProps> = ({
                       {/* Multi-Unit Quick Add & Hitung Eceran Buttons for Rokok (Bungkus, Slop, Dus) */}
                       {(item.unitBase === 'Bungkus' || item.multiUnit?.slopQty || item.name.toLowerCase().includes('rokok')) && !isOutOfStock && (
                         <div className="space-y-1 pt-1 border-t border-gray-100/80" onClick={(e) => e.stopPropagation()}>
-                          <div className="flex items-center justify-between text-[10px] text-gray-500 font-semibold px-0.5">
-                            <span className="text-teal-900 font-bold">Hitung Eceran:</span>
-                            <span className="text-[9px] text-gray-400">1 Slop = 10 Bks | 1 Dus = 40 Slop</span>
+                          <div className="flex items-center justify-between text-[10px] text-slate-700 font-bold px-0.5">
+                            <span className="text-teal-950 font-bold">Hitung Eceran:</span>
+                            <span className="text-[9px] text-slate-600 font-semibold">1 Slop = 10 Bks | 1 Dus = 40 Slop</span>
                           </div>
                           <div className="grid grid-cols-4 gap-1">
                             <button
@@ -569,9 +569,9 @@ export const PosCashierView: React.FC<PosCashierViewProps> = ({
                       {/* Quick Fraction Eceran Buttons for Weight & Volume (Gula, Minyak Curah) */}
                       {(item.unitBase === 'Kg' || item.unitBase === 'Liter') && !isOutOfStock && (
                         <div className="space-y-1 pt-1 border-t border-gray-100/80" onClick={(e) => e.stopPropagation()}>
-                          <div className="flex items-center justify-between text-[10px] text-gray-500 font-semibold px-0.5">
-                            <span className="text-teal-900 font-bold">Hitung Eceran:</span>
-                            <span className="text-[9px] text-gray-400">Desimal ({item.unitBase})</span>
+                          <div className="flex items-center justify-between text-[10px] text-slate-700 font-bold px-0.5">
+                            <span className="text-teal-950 font-bold">Hitung Eceran:</span>
+                            <span className="text-[9px] text-slate-600 font-semibold">Desimal ({item.unitBase})</span>
                           </div>
                           <div className="grid grid-cols-3 gap-1">
                             <button
@@ -646,10 +646,10 @@ export const PosCashierView: React.FC<PosCashierViewProps> = ({
           {/* Cart Items List */}
           <div className="p-3 max-h-[300px] overflow-y-auto divide-y divide-gray-100">
             {cart.length === 0 ? (
-              <div className="py-12 text-center text-gray-400">
-                <ShoppingCart className="w-10 h-10 mx-auto text-gray-300 mb-2" />
-                <p className="font-medium text-gray-600 text-sm">Keranjang masih kosong</p>
-                <p className="text-xs text-gray-400 mt-1">
+              <div className="py-12 text-center text-slate-600">
+                <ShoppingCart className="w-10 h-10 mx-auto text-slate-400 mb-2" />
+                <p className="font-bold text-slate-800 text-sm">Keranjang masih kosong</p>
+                <p className="text-xs text-slate-600 mt-1">
                   Scan barcode barang atau klik produk di katalog sebelah kiri
                 </p>
               </div>

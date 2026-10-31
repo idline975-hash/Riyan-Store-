@@ -276,7 +276,7 @@ export const InventoryView: React.FC<InventoryViewProps> = ({
           <div className="hidden md:block overflow-x-auto">
             <table className="w-full text-left border-collapse">
               <thead>
-                <tr className="border-b border-gray-200 bg-gray-50/75 text-[11px] font-bold text-gray-500 uppercase tracking-wider">
+                <tr className="border-b border-gray-200 bg-slate-100/90 text-[11px] font-bold text-slate-700 uppercase tracking-wider">
                   <th className="py-3 px-4">BARANG SEMBAKO</th>
                   <th className="py-3 px-4">KATEGORI</th>
                   <th className="py-3 px-4">KONVERSI SATUAN</th>
@@ -335,15 +335,15 @@ export const InventoryView: React.FC<InventoryViewProps> = ({
                       <tr key={`${item.id}-${idx}`} className="hover:bg-teal-50/20 transition-colors">
                         {/* BARANG SEMBAKO */}
                         <td className="py-3.5 px-4">
-                          <div className="font-semibold text-gray-900">{item.name}</div>
+                          <div className="font-bold text-gray-950">{item.name}</div>
                           <div className="flex items-center gap-2 mt-0.5">
-                            <span className="font-mono text-[11px] text-gray-500 bg-gray-100 px-1.5 py-0.5 rounded-sm">
+                            <span className="font-mono text-[11px] text-slate-700 bg-slate-100 px-1.5 py-0.5 rounded-sm font-semibold">
                               {item.barcode}
                             </span>
-                            <span className="text-[11px] text-gray-400">
+                            <span className="text-[11px] text-slate-600 font-semibold">
                               Modal: {formatRupiah(item.buyPrice)}
                             </span>
-                            <span className="text-[11px] font-semibold text-emerald-700">
+                            <span className="text-[11px] font-bold text-emerald-800">
                               Jual: {formatRupiah(item.sellPrice)}
                             </span>
                           </div>
@@ -351,15 +351,15 @@ export const InventoryView: React.FC<InventoryViewProps> = ({
 
                         {/* KATEGORI */}
                         <td className="py-3.5 px-4">
-                          <span className="inline-block bg-gray-100 text-gray-700 px-2.5 py-1 rounded-md text-xs font-medium">
+                          <span className="inline-block bg-teal-50 text-teal-900 border border-teal-200/80 px-2.5 py-1 rounded-md text-xs font-bold">
                             {item.category}
                           </span>
                         </td>
 
                         {/* KONVERSI SATUAN */}
-                        <td className="py-3.5 px-4 text-gray-700">
-                          <div className="font-medium">{item.unitConversion || `-`}</div>
-                          <div className="text-[11px] text-gray-400">
+                        <td className="py-3.5 px-4 text-slate-800">
+                          <div className="font-semibold">{item.unitConversion || `-`}</div>
+                          <div className="text-[11px] text-slate-600 font-medium">
                             Satuan Jual: {item.unitBase}
                           </div>
                         </td>

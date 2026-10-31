@@ -60,30 +60,30 @@ export const FinanceSummaryView: React.FC<FinanceSummaryViewProps> = ({
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-2.5 sm:gap-4">
         {/* Total Omset */}
         <div className="bg-white p-3.5 sm:p-5 rounded-2xl border border-gray-200 shadow-xs">
-          <div className="text-[11px] font-bold text-gray-500 uppercase">Total Pendapatan / Omset</div>
+          <div className="text-[11px] font-bold text-slate-700 uppercase">Total Pendapatan / Omset</div>
           <div className="text-2xl font-bold text-teal-900 mt-1">{formatRupiah(totalRevenue)}</div>
-          <div className="text-xs text-gray-500 mt-1">{transactions.length} Transaksi Penjualan</div>
+          <div className="text-xs text-slate-600 font-semibold mt-1">{transactions.length} Transaksi Penjualan</div>
         </div>
 
         {/* Laba Kotor */}
         <div className="bg-white p-5 rounded-2xl border border-emerald-200 shadow-xs">
-          <div className="text-[11px] font-bold text-emerald-700 uppercase">Laba Kotor (Gross Profit)</div>
-          <div className="text-2xl font-bold text-emerald-700 mt-1">{formatRupiah(grossProfit)}</div>
-          <div className="text-xs text-emerald-600 mt-1">Margin Keuntungan ~{marginPercent}%</div>
+          <div className="text-[11px] font-bold text-emerald-800 uppercase">Laba Kotor (Gross Profit)</div>
+          <div className="text-2xl font-bold text-emerald-800 mt-1">{formatRupiah(grossProfit)}</div>
+          <div className="text-xs text-emerald-700 font-semibold mt-1">Margin Keuntungan ~{marginPercent}%</div>
         </div>
 
         {/* Nilai Aset Stok Gudang */}
         <div className="bg-white p-5 rounded-2xl border border-blue-200 shadow-xs">
-          <div className="text-[11px] font-bold text-blue-700 uppercase">Nilai Aset Stok Sembako</div>
-          <div className="text-2xl font-bold text-blue-800 mt-1">{formatRupiah(totalAssetValue)}</div>
-          <div className="text-xs text-gray-500 mt-1">{items.length} Jenis Barang Sembako</div>
+          <div className="text-[11px] font-bold text-blue-800 uppercase">Nilai Aset Stok Sembako</div>
+          <div className="text-2xl font-bold text-blue-900 mt-1">{formatRupiah(totalAssetValue)}</div>
+          <div className="text-xs text-slate-600 font-semibold mt-1">{items.length} Jenis Barang Sembako</div>
         </div>
 
         {/* Piutang Kasbon */}
         <div className="bg-white p-5 rounded-2xl border border-rose-200 shadow-xs">
-          <div className="text-[11px] font-bold text-rose-700 uppercase">Piutang Kasbon Pelanggan</div>
-          <div className="text-2xl font-bold text-rose-700 mt-1">{formatRupiah(totalCustomerDebt)}</div>
-          <div className="text-xs text-rose-600 mt-1">Uang beredar di pelanggan</div>
+          <div className="text-[11px] font-bold text-rose-800 uppercase">Piutang Kasbon Pelanggan</div>
+          <div className="text-2xl font-bold text-rose-800 mt-1">{formatRupiah(totalCustomerDebt)}</div>
+          <div className="text-xs text-rose-700 font-semibold mt-1">Uang beredar di pelanggan</div>
         </div>
       </div>
 

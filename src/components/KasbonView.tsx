@@ -98,27 +98,27 @@ export const KasbonView: React.FC<KasbonViewProps> = ({
           <div className="text-2xl font-bold text-rose-700 mt-1">
             {formatRupiah(totalOutstanding)}
           </div>
-          <div className="text-xs text-gray-500 mt-0.5">
+          <div className="text-xs text-rose-800 font-semibold mt-0.5">
             {kasbonList.filter((k) => k.status === 'belum_lunas').length} Pelanggan belum melunasi
           </div>
         </div>
 
         <div className="bg-white p-4 rounded-2xl border border-emerald-200 shadow-xs">
-          <div className="text-[11px] font-bold text-emerald-700 uppercase">
+          <div className="text-[11px] font-bold text-emerald-800 uppercase">
             Total Kasbon Telah Lunas
           </div>
-          <div className="text-2xl font-bold text-emerald-700 mt-1">
+          <div className="text-2xl font-bold text-emerald-800 mt-1">
             {formatRupiah(totalSettled)}
           </div>
-          <div className="text-xs text-gray-500 mt-0.5">
+          <div className="text-xs text-emerald-800 font-semibold mt-0.5">
             {kasbonList.filter((k) => k.status === 'lunas').length} Transaksi kasbon selesai
           </div>
         </div>
 
         <div className="bg-white p-4 rounded-2xl border border-gray-200 shadow-xs flex flex-col justify-between">
           <div>
-            <div className="text-[11px] font-bold text-gray-500 uppercase">Pencatatan Manual</div>
-            <div className="text-xs text-gray-500 mt-0.5">
+            <div className="text-[11px] font-bold text-slate-700 uppercase">Pencatatan Manual</div>
+            <div className="text-xs text-slate-600 font-medium mt-0.5">
               Tambah catatan hutang tanpa lewat kasir
             </div>
           </div>
@@ -148,7 +148,7 @@ export const KasbonView: React.FC<KasbonViewProps> = ({
           </div>
 
           <div className="flex items-center gap-1.5 text-xs">
-            <span className="text-gray-500 font-medium">Status:</span>
+            <span className="text-slate-700 font-bold">Status:</span>
             {(['belum_lunas', 'lunas', 'semua'] as const).map((st) => (
               <button
                 key={st}
@@ -157,7 +157,7 @@ export const KasbonView: React.FC<KasbonViewProps> = ({
                 className={`px-3 py-1 rounded-lg text-[10px] font-bold uppercase transition-colors ${
                   statusFilter === st
                     ? 'bg-teal-800 text-white'
-                    : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                    : 'bg-gray-100 text-slate-700 hover:bg-gray-200'
                 }`}
               >
                 {st === 'belum_lunas' ? 'Belum Lunas' : st === 'lunas' ? 'Lunas' : 'Semua'}
@@ -170,7 +170,7 @@ export const KasbonView: React.FC<KasbonViewProps> = ({
         <div className="hidden md:block overflow-x-auto">
           <table className="w-full text-left border-collapse text-xs sm:text-sm">
             <thead>
-              <tr className="border-b border-gray-200 bg-gray-50 text-[11px] font-bold text-gray-500 uppercase tracking-wider">
+              <tr className="border-b border-gray-200 bg-slate-100/90 text-[11px] font-bold text-slate-700 uppercase tracking-wider">
                 <th className="py-3 px-4">NAMA PELANGGAN</th>
                 <th className="py-3 px-4">TANGGAL & JATUH TEMPO</th>
                 <th className="py-3 px-4">TOTAL KASBON</th>

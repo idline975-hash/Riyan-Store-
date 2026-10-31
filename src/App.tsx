@@ -207,9 +207,9 @@ export default function App() {
   const [zoomScale, setZoomScale] = useState<number>(() => {
     try {
       const saved = localStorage.getItem('riyan_store_zoom_scale_v1');
-      return saved ? parseFloat(saved) : 0.90; // Default 90% on desktop
+      return saved ? parseFloat(saved) : 1; // Default 100% on desktop for crisp natural contrast
     } catch {
-      return 0.90;
+      return 1;
     }
   });
 
@@ -913,26 +913,23 @@ export default function App() {
         kasbonActiveCount={kasbonActiveCount}
       />
 
-      {/* Top Header & Navigation Bar (Edge-to-Edge Sticky with Menu Sidebar Button for PC/Tablet) */}
-      <div className="sticky top-0 z-30 w-full max-w-full left-0 right-0 bg-white shadow-xs">
-        <div className="flex items-center px-3 sm:px-4 py-2.5 sm:py-3 max-w-7xl mx-auto justify-between">
-          <div className="flex items-center gap-3">
-            {/* Hamburger button for PC/Tablet sidebar */}
-            <button
-              type="button"
-              onClick={() => setIsSidebarOpen(true)}
-              className="p-2 rounded-xl bg-teal-50 hover:bg-teal-100 text-teal-900 transition-colors cursor-pointer flex items-center gap-1.5 text-xs font-bold"
-              title="Buka Menu Sidebar"
-            >
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 6h16M4 12h16M4 18h16" />
-              </svg>
-              <span className="hidden sm:inline">Menu</span>
-            </button>
-            <Header />
-          </div>
-        </div>
-      </div>
+      {/* Top Header & Navigation Bar (Responsive with Desktop Tabs and Sidebar Toggle) */}
+      <Header
+        activeTab={activeTab}
+        onSelectTab={(tab) => {
+          setActiveTab(tab);
+          if (tab === 'pos') {
+            setBarcodeModalMode('pos');
+          } else {
+            setBarcodeModalMode('inventory');
+          }
+        }}
+        onOpenSidebar={() => setIsSidebarOpen(true)}
+        lowStockCount={lowStockCount}
+        kasbonActiveCount={kasbonActiveCount}
+        isOnline={pwa.isOnline}
+        cashierName={currentUser}
+      />
 
       {/* Main Content View Container */}
       <main className="flex-1 max-w-7xl w-full mx-auto p-3 sm:p-5 lg:p-6 pb-24 md:pb-8">

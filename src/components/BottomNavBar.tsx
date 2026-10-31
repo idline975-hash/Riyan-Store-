@@ -196,8 +196,8 @@ export const BottomNavBar: React.FC<BottomNavBarProps> = ({
             <div
               className={`p-2 rounded-full transition-all duration-200 flex items-center justify-center ${
                 isDashActive
-                  ? 'bg-blue-50 text-blue-600'
-                  : 'text-gray-400 hover:text-gray-600'
+                  ? 'bg-teal-50 text-teal-800'
+                  : 'text-slate-500 hover:text-slate-800'
               }`}
             >
               <Home className="w-6 h-6 stroke-[2]" />
@@ -205,8 +205,8 @@ export const BottomNavBar: React.FC<BottomNavBarProps> = ({
             <span
               className={`text-[11px] mt-0.5 tracking-tight transition-colors ${
                 isDashActive
-                  ? 'text-blue-600 font-bold'
-                  : 'text-gray-400 font-medium'
+                  ? 'text-teal-800 font-bold'
+                  : 'text-slate-600 font-semibold'
               }`}
             >
               Dash
@@ -225,13 +225,13 @@ export const BottomNavBar: React.FC<BottomNavBarProps> = ({
             <div
               className={`p-2 rounded-full transition-all duration-200 flex items-center justify-center relative ${
                 isProdukActive
-                  ? 'bg-blue-50 text-blue-600'
-                  : 'text-gray-400 hover:text-gray-600'
+                  ? 'bg-teal-50 text-teal-800'
+                  : 'text-slate-500 hover:text-slate-800'
               }`}
             >
               <Package className="w-6 h-6 stroke-[2]" />
               {lowStockCount > 0 && (
-                <span className="absolute -top-0.5 -right-0.5 bg-amber-500 text-white text-[9px] font-black w-4 h-4 rounded-full flex items-center justify-center border-2 border-white">
+                <span className="absolute -top-0.5 -right-0.5 bg-amber-600 text-white text-[9px] font-black w-4 h-4 rounded-full flex items-center justify-center border-2 border-white">
                   {lowStockCount > 9 ? '9+' : lowStockCount}
                 </span>
               )}
@@ -239,8 +239,8 @@ export const BottomNavBar: React.FC<BottomNavBarProps> = ({
             <span
               className={`text-[11px] mt-0.5 tracking-tight transition-colors ${
                 isProdukActive
-                  ? 'text-blue-600 font-bold'
-                  : 'text-gray-400 font-medium'
+                  ? 'text-teal-800 font-bold'
+                  : 'text-slate-600 font-semibold'
               }`}
             >
               Produk
@@ -256,14 +256,12 @@ export const BottomNavBar: React.FC<BottomNavBarProps> = ({
             }}
             className="flex flex-col items-center justify-center w-full -mt-6 cursor-pointer z-10"
           >
-            <div className="w-16 h-16 rounded-full bg-blue-500 text-white shadow-[0_8px_20px_rgba(59,130,246,0.4)] ring-4 ring-white flex items-center justify-center transition-transform active:scale-95 hover:bg-blue-600">
+            <div className="w-16 h-16 rounded-full bg-teal-800 text-white shadow-[0_8px_20px_rgba(17,94,89,0.45)] ring-4 ring-white flex items-center justify-center transition-transform active:scale-95 hover:bg-teal-900">
               <Store className="w-8 h-8 text-white stroke-[2]" />
             </div>
             <span
-              className={`text-xs mt-1 tracking-tight transition-colors ${
-                isKasirActive
-                  ? 'text-blue-600 font-bold'
-                  : 'text-blue-600 font-bold'
+              className={`text-xs mt-1 tracking-tight font-bold transition-colors ${
+                isKasirActive ? 'text-teal-900' : 'text-teal-800'
               }`}
             >
               Kasir
@@ -282,8 +280,8 @@ export const BottomNavBar: React.FC<BottomNavBarProps> = ({
             <div
               className={`p-2 rounded-full transition-all duration-200 flex items-center justify-center ${
                 isTransaksiActive
-                  ? 'bg-blue-50 text-blue-600'
-                  : 'text-gray-400 hover:text-gray-600'
+                  ? 'bg-teal-50 text-teal-800'
+                  : 'text-slate-500 hover:text-slate-800'
               }`}
             >
               <Receipt className="w-6 h-6 stroke-[2]" />
@@ -291,8 +289,8 @@ export const BottomNavBar: React.FC<BottomNavBarProps> = ({
             <span
               className={`text-[11px] mt-0.5 tracking-tight transition-colors ${
                 isTransaksiActive
-                  ? 'text-blue-600 font-bold'
-                  : 'text-gray-400 font-medium'
+                  ? 'text-teal-800 font-bold'
+                  : 'text-slate-600 font-semibold'
               }`}
             >
               Transaksi
@@ -310,8 +308,8 @@ export const BottomNavBar: React.FC<BottomNavBarProps> = ({
             <div
               className={`p-2 rounded-full transition-all duration-200 flex items-center justify-center relative ${
                 isSettingsActive || showSettingsDrawer
-                  ? 'bg-blue-50 text-blue-600'
-                  : 'text-gray-400 hover:text-gray-600'
+                  ? 'bg-teal-50 text-teal-800'
+                  : 'text-slate-500 hover:text-slate-800'
               }`}
             >
               <Settings className="w-6 h-6 stroke-[2]" />
@@ -324,8 +322,8 @@ export const BottomNavBar: React.FC<BottomNavBarProps> = ({
             <span
               className={`text-[11px] mt-0.5 tracking-tight transition-colors ${
                 isSettingsActive || showSettingsDrawer
-                  ? 'text-blue-600 font-bold'
-                  : 'text-gray-400 font-medium'
+                  ? 'text-teal-800 font-bold'
+                  : 'text-slate-600 font-semibold'
               }`}
             >
               Pengaturan
