@@ -9,6 +9,10 @@ body {
   overflow-x: hidden;
   touch-action: pan-y pinch-zoom;
   -webkit-text-size-adjust: 100%;
+  color-scheme: light;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
 }
 
 #root,
